@@ -1,3 +1,5 @@
+#!/bin/bash
+
 MIN_COV = 100.0
 
 bin/: ; mkdir -p $@
