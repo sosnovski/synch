@@ -74,4 +74,3 @@ jobs:
         run: make cov
       - name: Check test coverage
         run: make check-cov
-
