@@ -20,7 +20,7 @@ jobs:
         with:
           files: |
             *.go
-            .github/workflows
+            workflows
 
   lint:
     name: Run linters
