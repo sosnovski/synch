@@ -25,6 +25,8 @@ jobs:
         name: Set changed
         if: steps.verify_changed_files.outputs.any_changed == 'true'
         run: echo "changed=true" >> "$GITHUB_OUTPUT"
+      - name: Check outputs
+        run: echo ${{ steps.verify_changed_files.outputs.changed }}
 
   lint:
     name: Run linters
