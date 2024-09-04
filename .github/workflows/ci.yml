@@ -26,6 +26,8 @@ jobs:
       - run: apt -y install bc
       - name: Run test
         run: make test
+      - name: Current coverage
+        run: make cov
       - name: Check test coverage
         run: make check-cov
 
