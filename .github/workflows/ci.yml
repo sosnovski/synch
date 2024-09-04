@@ -20,8 +20,8 @@ jobs:
         uses: tj-actions/changed-files@v45
         with:
           files: |
-            *.go
-            ./github/workflows/**
+            **.go
+            .github/workflows/**
 
       - name: List all changed files
         if: steps.changed-markdown-files.outputs.any_changed == 'true'
