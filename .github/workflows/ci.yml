@@ -20,15 +20,11 @@ jobs:
         uses: tj-actions/changed-files@v45
         with:
           files: |
-            *
-#      - id: set_changed
-#        name: Set changed
-#        if: steps.verify_changed_files.outputs.any_changed == 'true'
-#        run: echo "changed=true" >> "$GITHUB_OUTPUT"
-#      - name: Check outputs
-#        run: echo ${{ steps.verify_changed_files.outputs.changed }}
+            *.go
+            workflows/**
 
   lint:
+    if: needs.verify_changes.outputs.changed == 'true'
     name: Run linters
     needs: [verify_changes]
     concurrency:
@@ -37,17 +33,12 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
-      - name: Print
-        run: ${{ needs.verify_changes.outputs.changed }}
-      - name: Check changed files
-        if: needs.verify_changes.outputs.changed == 'true'
-        run: echo 'Files is changed'
-
       - uses: actions/checkout@v4
       - run: apt-get -y install make
       - run: make lint
 
   test_and_coverage:
+    if: needs.verify_changes.outputs.changed == 'true'
     name: Run unit tests & check coverage
     needs: [verify_changes]
     concurrency:
@@ -56,10 +47,6 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
-      - name: Check changed files
-        if: needs.verify_changes.outputs.changed == 'true'
-        run: echo 'Files is changed'
-
       - uses: actions/checkout@v4
       - run: apt update
       - run: apt -y install make
