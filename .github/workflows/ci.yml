@@ -1,0 +1,77 @@
+name: CI
+on:
+  pull_request:
+  release:
+
+permissions:
+  contents: read
+
+jobs:
+  verify_changes:
+    name: Verify changes
+    concurrency:
+      group: verify_changes_group_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.verify_changed_files.outputs.any_changed }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: verify_changed_files
+        name: Check changes golang and workflow files
+        uses: tj-actions/changed-files@v45
+        with:
+          since_last_remote_commit: true
+          files: |
+            **.go
+            .github/workflows/**
+
+      - name: List all changed files
+        if: steps.verify_changed_files.outputs.any_changed == 'true'
+        env:
+          ALL_CHANGED_FILES: ${{ steps.verify_changed_files.outputs.all_changed_files }}
+        run: |
+          for file in ${ALL_CHANGED_FILES}; do
+            echo "$file was changed"
+          done
+
+  lint:
+    name: Run linters
+    if: needs.verify_changes.outputs.changed == 'true'
+    needs: [verify_changes]
+    concurrency:
+      group: lint_group_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.60.3
+
+  test_and_coverage:
+    name: Run unit tests & check coverage
+    if: needs.verify_changes.outputs.changed == 'true'
+    needs: [verify_changes]
+    concurrency:
+      group: test_group_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+      - run: sudo apt-get -y install make
+      - run: sudo apt-get -y install bc
+      - name: Run test
+        run: make test
+      - name: Current coverage
+        run: make cov
+      - name: Check test coverage
+        run: make check-cov
