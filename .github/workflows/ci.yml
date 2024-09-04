@@ -30,4 +30,5 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: apt-get -y install make
+      - run: apt-get -y install bc
       - run: make check-cov
