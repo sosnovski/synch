@@ -15,6 +15,7 @@ jobs:
     outputs:
       changed: ${{ steps.verify_changed_files.outputs.any_changed }}
     steps:
+      - uses: actions/checkout@v4
       - id: verify_changed_files
         name: Check changes golang and workflow files
         uses: tj-actions/changed-files@v45
