@@ -28,6 +28,8 @@ jobs:
         run: make test
       - name: Current coverage
         run: make cov
+        shell: bash {0}
       - name: Check test coverage
         run: make check-cov
+        shell: bash {0}
 
