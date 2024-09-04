@@ -71,7 +71,7 @@ type Driver struct {
 //	    log.Fatal(err)
 //	}
 //
-//	dialect := &MyDialect{}
+//	dialect := MyDialect{}
 //
 //	driver, err := NewDriver(conn, dialect, WithAutoMigration(true), WithTableName("locks"))
 //	if err != nil {
