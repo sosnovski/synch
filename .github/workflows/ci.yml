@@ -66,8 +66,8 @@ jobs:
       - uses: actions/setup-go@v5
         with:
           go-version: 1.22
-      - run: apt -y install make
-      - run: apt -y install bc
+      - run: sudo apt-get -y install make
+      - run: sudo apt-get -y install bc
       - name: Run test
         run: make test
       - name: Current coverage
