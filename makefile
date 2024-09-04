@@ -18,7 +18,7 @@ test:
 
 .PHONY: cov
 cov:
-	@go tool cover -func cov.out | grep total | xargs -I {} | awk '{print substr($$3, 1, length($$3)-1)}'
+	@go tool cover -func cov.out | grep total | xargs -I {} | awk '{print substr($3, 1, length($3)-1)}'
 
 .PHONY: check-cov
 check-cov:
