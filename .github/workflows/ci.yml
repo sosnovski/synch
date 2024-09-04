@@ -19,7 +19,7 @@ jobs:
         name: Check changes golang and workflow files
         uses: tj-actions/changed-files@v45
         with:
-          since_last_remote_commit: true
+          fetch-depth: 1
           files: |
             **.go
             .github/workflows/**
