@@ -38,7 +38,7 @@ if err != nil {
     // handle error
 }
 
-driver, err := locker.NewDriver(conn, sql.PostgresDialect{}, WithAutoMigration(true), WithTableName("locks"))
+driver, err := locker.NewDriver(conn, sql.PostgresDialect{}, WithAutoMigration(true))
 if err != nil {
     // handle error
 }
