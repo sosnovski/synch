@@ -6,6 +6,26 @@ permissions:
   contents: read
 
 jobs:
+  verify_changes:
+    name: Verify changes
+    concurrency:
+      group: verify_changes_group_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    outputs:
+      changed: ${{ steps.verify_changed_files.outputs.changed }}
+    steps:
+      - id: verify_changed_files
+        name: Check file changed
+        uses: tj-actions/changed-files@v45
+        with:
+          files: |
+            *
+      - id: set_changed
+        name: Set changed
+        if: steps.verify_changed_files.outputs.any_changed == 'true'
+        run: echo "changed=true" >> "$GITHUB_OUTPUT"
+
   lint:
     name: Run linters
     needs: [verify_changes]
@@ -15,6 +35,10 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
+      - name: Check changed files
+        if: needs.verify_changes.outputs.changed == 'true'
+        run: echo 'Files is changed'
+
       - uses: actions/checkout@v4
       - run: apt-get -y install make
       - run: make lint
@@ -28,6 +52,10 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
+      - name: Check changed files
+        if: needs.verify_changes.outputs.changed == 'true'
+        run: echo 'Files is changed'
+
       - uses: actions/checkout@v4
       - run: apt update
       - run: apt -y install make
