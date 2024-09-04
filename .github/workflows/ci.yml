@@ -6,8 +6,28 @@ permissions:
   contents: read
 
 jobs:
+  verify_changes:
+    name: Verify changes
+    concurrency:
+      group: verify_changes_group_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify changes files
+        uses: tj-actions/verify-changed-files@v20
+        id: verify-changed-files
+        with:
+          files: |
+            *.go
+            .github/workflows
+
   lint:
     name: Run linters
+    needs: [verify_changes]
+    concurrency:
+      group: lint_group_${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
@@ -17,6 +37,10 @@ jobs:
 
   test_and_coverage:
     name: Run unit tests & check coverage
+    needs: [verify_changes]
+    concurrency:
+      group: test_group_${{ github.ref }}
+      cancel-in-progress: true
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
