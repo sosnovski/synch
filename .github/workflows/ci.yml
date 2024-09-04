@@ -36,54 +36,39 @@ jobs:
             echo "$file was changed"
           done
 
-  vendor:
-    if: needs.verify_changes.outputs.changed == 'true'
-    name: Go vendor
-    needs: [verify_changes]
-    concurrency:
-      group: vendor_group_${{ github.ref }}
-      cancel-in-progress: true
-    runs-on: ubuntu-latest
-    container: golang:1.22
-    steps:
-      - uses: actions/checkout@v4
-      - run: go mod vendor
-      - uses: actions/upload-artifact@v4
-        with:
-          name: vendor
-          path: vendor
-
-
   lint:
     name: Run linters
-    needs: [vendor]
+    if: needs.verify_changes.outputs.changed == 'true'
+    needs: [verify_changes]
     concurrency:
       group: lint_group_${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    container: golang:1.22
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
-        name: vendor
-      - run: apt-get -y install make
-      - run: make lint
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
+      - uses: golangci/golangci-lint-action@v6
+        with:
+          version: v1.60.3
 
   test_and_coverage:
     name: Run unit tests & check coverage
-    needs: [vendor]
+    if: needs.verify_changes.outputs.changed == 'true'
+    needs: [verify_changes]
     concurrency:
       group: test_group_${{ github.ref }}
       cancel-in-progress: true
     runs-on: ubuntu-latest
-    container: golang:1.22
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/setup-go@v5
+        with:
+          go-version: 1.22
       - run: apt update
       - run: apt -y install make
       - run: apt -y install bc
-      - uses: actions/download-artifact@v4
-        name: vendor
       - name: Run test
         run: make test
       - name: Current coverage
