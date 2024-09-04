@@ -12,7 +12,7 @@ lint: | bin/golangci-lint ## Run code linters
 
 .PHONY: test
 test:
-	go test ./... -cover -coverpkg=./... -coverprofile=cov.out
+	go test ./... -v -cover -coverpkg=./... -coverprofile=cov.out
 
 .PHONY: cov
 cov:
