@@ -20,14 +20,14 @@ jobs:
 
   test:
     runs-on: ubuntu-latest
-    container: golang:1.22-alpine
+    container: golang:1.22
     name: unit tests
     steps:
       - run: make test
 
   check_coverage:
     runs-on: ubuntu-latest
-    container: golang:1.22-alpine
+    container: golang:1.22
     name: check test coverage
     steps:
       - run: make check-cov
