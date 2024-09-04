@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
-          fetch-depth: 1
+          fetch-depth: 0
       - id: verify_changed_files
         name: Check changes golang and workflow files
         uses: tj-actions/changed-files@v45
