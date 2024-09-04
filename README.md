@@ -51,8 +51,8 @@ if err != nil {
 // use locker object
 ```
 
-### Try lock
-This method tries to take the lock and if it is already taken by someone, it immediately returns an error.
+### Try to acquire a lock and
+This method tries to take the lock, and if it is already taken by someone, it immediately returns an error.
 ```go
 lock, err := locker.TryLock(ctx, "my_lock_id")
 if err != nil {
@@ -61,8 +61,8 @@ if err != nil {
 defer lock.Close(ctx) // Remember to always close the lock when done
 ```
 
-### Use a lock and automatically release it after use
-This method does the same thing as TryLock but it is convenient to use it together with an anonymous function.
+### Try to acquire a lock and execute anonymous function
+This method does the same thing as TryLock, but it is convenient to use it together with an anonymous function.
 ```go
 // Wrap some application logic with a lock
 err := locker.TryLockDo(ctx, "my_lock_id", func(_ context.Context) error {  
@@ -86,7 +86,7 @@ if err != nil {
 defer lock.Close(ctx)
 ```
 
-#### Use a lock (if available immediately, else wait), execute function, and automatically release the lock afterward
+### Wait to acquire a lock and execute anonymous function 
 ```go
 // Wrap some application logic with a lock and wait when lock is not immediately available
 err := locker.WaitLockDo(ctx, "my_lock_id", time.Second, func(_ context.Context) error { 
