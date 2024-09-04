@@ -36,10 +36,27 @@ jobs:
             echo "$file was changed"
           done
 
-  lint:
+  vendor:
     if: needs.verify_changes.outputs.changed == 'true'
-    name: Run linters
+    name: Go vendor
     needs: [verify_changes]
+    concurrency:
+      group: vendor_group_${{ github.ref }}
+      cancel-in-progress: true
+    runs-on: ubuntu-latest
+    container: golang:1.22
+    steps:
+      - uses: actions/checkout@v4
+      - run: go mod vendor
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vendor
+          path: vendor
+
+
+  lint:
+    name: Run linters
+    needs: [vendor]
     concurrency:
       group: lint_group_${{ github.ref }}
       cancel-in-progress: true
@@ -47,13 +64,14 @@ jobs:
     container: golang:1.22
     steps:
       - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        name: vendor
       - run: apt-get -y install make
       - run: make lint
 
   test_and_coverage:
-    if: needs.verify_changes.outputs.changed == 'true'
     name: Run unit tests & check coverage
-    needs: [verify_changes]
+    needs: [vendor]
     concurrency:
       group: test_group_${{ github.ref }}
       cancel-in-progress: true
@@ -64,6 +82,8 @@ jobs:
       - run: apt update
       - run: apt -y install make
       - run: apt -y install bc
+      - uses: actions/download-artifact@v4
+        name: vendor
       - name: Run test
         run: make test
       - name: Current coverage
