@@ -63,6 +63,7 @@ defer lock.Close(ctx) // Remember to always close the lock when done
 
 ### Try to acquire a lock and execute anonymous function
 This method does the same thing as TryLock, but it is convenient to use it together with an anonymous function.
+The lock is released automatically after exiting the anonymous function.
 ```go
 // Wrap some application logic with a lock
 err := locker.TryLockDo(ctx, "my_lock_id", func(_ context.Context) error {  
@@ -88,6 +89,7 @@ defer lock.Close(ctx) // Remember to always close the lock when done
 
 ### Wait to acquire a lock and execute anonymous function 
 This method does the same thing as WaitLock, but it is convenient to use it together with an anonymous function.
+The lock is released automatically after exiting the anonymous function.
 ```go
 // Wrap some application logic with a lock and wait when lock is not available
 err := locker.WaitLockDo(ctx, "my_lock_id", time.Second, func(_ context.Context) error { 
