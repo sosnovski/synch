@@ -35,6 +35,7 @@ type dialectWithoutMigration struct {
 	dialect sql.Dialect
 }
 
+//nolint:wrapcheck //its only for test
 func (d dialectWithoutMigration) UpsertLock(
 	ctx context.Context,
 	conn *stdSql.DB,
@@ -44,6 +45,7 @@ func (d dialectWithoutMigration) UpsertLock(
 	return d.dialect.UpsertLock(ctx, conn, tableName, params)
 }
 
+//nolint:wrapcheck //its only for test
 func (d dialectWithoutMigration) DeleteLock(
 	ctx context.Context,
 	conn *stdSql.DB,
@@ -53,6 +55,7 @@ func (d dialectWithoutMigration) DeleteLock(
 	return d.dialect.DeleteLock(ctx, conn, tableName, params)
 }
 
+//nolint:wrapcheck //its only for test
 func (d dialectWithoutMigration) Heartbeat(
 	ctx context.Context,
 	conn *stdSql.DB,
