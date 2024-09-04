@@ -27,9 +27,9 @@ jobs:
       - name: Run test
         run: make test
       - name: Current coverage
-        shell: bash {0}
+        shell: cmd
         run: make cov
       - name: Check test coverage
-        shell: bash {0}
+        shell: cmd
         run: make check-cov
 
