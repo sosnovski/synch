@@ -51,7 +51,7 @@ if err != nil {
 // use locker object
 ```
 
-### Try to acquire a lock and
+### Try to acquire a lock
 This method tries to take the lock, and if it is already taken by someone, it immediately returns an error.
 ```go
 lock, err := locker.TryLock(ctx, "my_lock_id")
