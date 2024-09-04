@@ -16,7 +16,7 @@ jobs:
       changed: ${{ steps.verify_changed_files.outputs.any_changed }}
     steps:
       - id: verify_changed_files
-        name: Check file changed
+        name: Check changes golang and workflow files
         uses: tj-actions/changed-files@v45
         with:
           files: |
@@ -24,7 +24,7 @@ jobs:
             .github/workflows/**
 
       - name: List all changed files
-        if: steps.changed-markdown-files.outputs.any_changed == 'true'
+        if: steps.verify_changed_files.outputs.any_changed == 'true'
         env:
           ALL_CHANGED_FILES: ${{ steps.changed-markdown-files.outputs.all_changed_files }}
         run: |
