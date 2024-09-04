@@ -7,6 +7,7 @@ permissions:
 
 jobs:
   lint:
+    name: Run linters
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
@@ -14,22 +15,17 @@ jobs:
       - run: apt-get -y install make
       - run: make lint
 
-  test:
+  test_and_coverage:
+    name: Run unit tests & check coverage
     runs-on: ubuntu-latest
     container: golang:1.22
-    name: unit tests
-    steps:
-      - uses: actions/checkout@v4
-      - run: apt -y install make
-      - run: make test
-
-  check_coverage:
-    runs-on: ubuntu-latest
-    container: golang:1.22
-    name: check test coverage
     steps:
       - uses: actions/checkout@v4
       - run: apt update
       - run: apt -y install make
-      - run: apt -y install bc
-      - run: make check-cov
+      - run: apt -y install make
+      - name: Run test
+        run: make test
+      - name: Check test coverage
+        run: make check-cov
+
