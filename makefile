@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/bin/sh
 
 MIN_COV = 100.0
 
