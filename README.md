@@ -83,12 +83,12 @@ lock, err := locker.WaitLock(ctx, "my_lock_id", time.Second)
 if err != nil {
   // handle error
 }
-defer lock.Close(ctx)
+defer lock.Close(ctx) // Remember to always close the lock when done
 ```
 
 ### Wait to acquire a lock and execute anonymous function 
 ```go
-// Wrap some application logic with a lock and wait when lock is not immediately available
+// Wrap some application logic with a lock and wait when lock is not available
 err := locker.WaitLockDo(ctx, "my_lock_id", time.Second, func(_ context.Context) error { 
 	// do something
 	return nil  
