@@ -6,22 +6,6 @@ permissions:
   contents: read
 
 jobs:
-  verify_changes:
-    name: Verify changes
-    concurrency:
-      group: verify_changes_group_${{ github.ref }}
-      cancel-in-progress: true
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
-      - name: Verify changes files
-        uses: tj-actions/verify-changed-files@v20
-        id: verify-changed-files
-        with:
-          files: |
-            *.go
-            workflows
-
   lint:
     name: Run linters
     needs: [verify_changes]
