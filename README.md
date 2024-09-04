@@ -14,7 +14,7 @@ $ go get -u github.com/sosnovski/synch
 The **Synch** library includes the locker package, which brings the capabilities of managing distributed locks, constructed atop various databases such as Postgres, MySQL, Redis, and others.
 
 ## Use cases
-In distributed systems where several processing units need to carry out operations on specific resources like campaigns or customers, this client creates exclusive locks to prevent concurrent modifications. Thus, it provides a straightforward solution to achieve fine-grained locking.
+In distributed systems where several processing units need to carry out operations on specific resources like campaigns or customers, this client creates exclusive locks to prevent concurrent modifications. Thus, it provides a straightforward solution to achieve distributed locking.
 
 Additionally, the lock client can be instrumental in leader election. It facilitates the selection of a single host as the leader for smooth operations. In case the chosen leader fails, another host assumes the leader's role within a user-defined lease period.
 
