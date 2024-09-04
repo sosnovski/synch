@@ -8,21 +8,18 @@ permissions:
 jobs:
   lint:
     runs-on: ubuntu-latest
+    container: golang:1.22
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-      - name: golangci-lint
-        uses: golangci/golangci-lint-action@v6
-        with:
-          version: v1.60.3
+      - run: apt-get -y install make
+      - run: make lint
 
   test:
     runs-on: ubuntu-latest
     container: golang:1.22
     name: unit tests
     steps:
+      - uses: actions/checkout@v4
       - run: apt-get -y install make
       - run: make test
 
@@ -31,5 +28,6 @@ jobs:
     container: golang:1.22
     name: check test coverage
     steps:
+      - uses: actions/checkout@v4
       - run: apt-get -y install make
       - run: make check-cov
