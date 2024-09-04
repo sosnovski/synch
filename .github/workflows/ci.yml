@@ -35,6 +35,8 @@ jobs:
     runs-on: ubuntu-latest
     container: golang:1.22
     steps:
+      - name: Print
+        run: ${{ needs.verify_changes.outputs.changed }}
       - name: Check changed files
         if: needs.verify_changes.outputs.changed == 'true'
         run: echo 'Files is changed'
