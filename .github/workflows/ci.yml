@@ -16,11 +16,12 @@ jobs:
       changed: ${{ steps.verify_changed_files.outputs.any_changed }}
     steps:
       - uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
       - id: verify_changed_files
         name: Check changes golang and workflow files
         uses: tj-actions/changed-files@v45
         with:
-          fetch-depth: 1
           files: |
             **.go
             .github/workflows/**
