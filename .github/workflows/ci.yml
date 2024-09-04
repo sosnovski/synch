@@ -23,6 +23,7 @@ jobs:
     container: golang:1.22
     name: unit tests
     steps:
+      - run: apt-get -y install make
       - run: make test
 
   check_coverage:
@@ -30,4 +31,5 @@ jobs:
     container: golang:1.22
     name: check test coverage
     steps:
+      - run: apt-get -y install make
       - run: make check-cov
