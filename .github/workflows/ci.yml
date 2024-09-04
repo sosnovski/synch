@@ -21,7 +21,7 @@ jobs:
         with:
           files: |
             *.go
-            workflows/**
+            ./github/workflows/**
 
   lint:
     if: needs.verify_changes.outputs.changed == 'true'
