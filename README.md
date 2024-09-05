@@ -40,7 +40,7 @@ import (
     "database/sql"
 
     _ "github.com/lib/pq"
-    sqldriver "github.com/sosnovski/synch/locker/sql"
+    sqllocker "github.com/sosnovski/synch/locker/sql"
     "github.com/sosnovski/synch/locker"
 )
 
@@ -49,7 +49,7 @@ if err != nil {
     // handle error
 }
 
-driver, err := sqldriver.NewDriver(conn, sqldriver.PostgresDialect{}, WithAutoMigration(true), WithTableName("locks_v1"))
+driver, err := sqllocker.NewDriver(conn, sqldriver.PostgresDialect{}, WithAutoMigration(true), WithTableName("locks_v1"))
 if err != nil {
     // handle error
 }
