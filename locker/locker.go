@@ -44,7 +44,7 @@ type Locker struct {
 	instanceID         string
 }
 
-// NewLocker creates a new instance of the Locker struct.
+// New creates a new instance of the Locker struct.
 //
 // The Locker object represents a distributed lock manager that uses the given Driver
 // for acquiring and managing distributed locks. The Driver interface is responsible
@@ -57,12 +57,12 @@ type Locker struct {
 // Example:
 //
 //	driver := ...
-//	locker, err := NewLocker(driver)
+//	locker, err := New(driver)
 //	if err != nil {
 //	  // handle error
 //	}
 //	// use locker to acquire and release locks
-func NewLocker(driver Driver, options ...Option) (*Locker, error) {
+func New(driver Driver, options ...Option) (*Locker, error) {
 	locker := &Locker{
 		log:                log.Noop{},
 		driver:             driver,
@@ -95,7 +95,7 @@ func NewLocker(driver Driver, options ...Option) (*Locker, error) {
 // Example:
 //
 //	driver := ...
-//	locker, err := NewLocker(driver)
+//	locker, err := New(driver)
 //	if err != nil {
 //	  // handle error
 //	}
@@ -152,7 +152,7 @@ func (l *Locker) TryLock(ctx context.Context, lockID string, options ...lock.Opt
 // Example:
 //
 //	driver := ...
-//	locker, err := NewLocker(driver)
+//	locker, err := New(driver)
 //	if err != nil {
 //	  // handle error
 //	}
@@ -243,7 +243,7 @@ func (l *Locker) WaitLock(
 //
 // Example:
 //
-//	locker, err := NewLocker(driver)
+//	locker, err := New(driver)
 //	if err != nil {
 //	  // handle error
 //	}

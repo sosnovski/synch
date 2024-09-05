@@ -27,11 +27,11 @@ type Lock struct {
 	closed            atomic.Bool
 }
 
-// NewLock returns a new instance of the Lock struct with the given parameters.
+// New returns a new instance of the Lock struct with the given parameters.
 // The Lock struct represents a lock object used to manage distributed locks.
 // It contains information such as the shutdown context, a closer function for cleanup and closing operations,
 // lock ID and instance ID, timeout, and heartbeat interval.
-func NewLock(
+func New(
 	shutdownCtx context.Context,
 	closer closer,
 	id string,
