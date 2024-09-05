@@ -113,6 +113,7 @@ func (l *Locker) TryLock(ctx context.Context, lockID string, options ...lock.Opt
 		Timeout:           defaultLockTimeout,
 		HeartbeatInterval: defaultHeartbeatInterval,
 		Data:              nil,
+		GroupID:           "",
 	}
 
 	for _, option := range options {

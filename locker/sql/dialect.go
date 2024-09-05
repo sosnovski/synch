@@ -289,7 +289,7 @@ func (MysqlDialect) UpsertLock(
 	tableName string,
 	params lock.Params,
 ) (sql.Result, error) {
-	ms := params.Timeout.Milliseconds()
+	msTimeout := params.Timeout.Milliseconds()
 
 	res, err := conn.ExecContext(ctx, fmt.Sprintf(`
             INSERT INTO %s (id, locked_by, locked_at, last_heartbeat, group_id, data)
@@ -300,7 +300,7 @@ func (MysqlDialect) UpsertLock(
 			group_id = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(group_id), group_id),
 			data = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(data), data);
         `, tableName),
-		params.ID, params.InstanceID, params.GroupID, params.Data, ms, ms, ms, ms)
+		params.ID, params.InstanceID, params.GroupID, params.Data, msTimeout, msTimeout, msTimeout, msTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("upsert to %s: %w", tableName, err)
 	}
