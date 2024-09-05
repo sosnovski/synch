@@ -49,7 +49,7 @@ if err != nil {
     // handle error
 }
 
-driver, err := sqldriver.NewDriver(conn, sqldriver.PostgresDialect{}, WithAutoMigration(true))
+driver, err := sqldriver.NewDriver(conn, sqldriver.PostgresDialect{}, WithAutoMigration(true), WithTableName("locks_v1"))
 if err != nil {
     // handle error
 }
