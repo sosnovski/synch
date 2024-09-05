@@ -127,3 +127,33 @@ func TestApplyWithData(t *testing.T) {
 		})
 	}
 }
+
+func TestApplyWithGroupID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		want    error
+		name    string
+		groupID string
+	}{
+		{
+			name:    "empty groupID",
+			groupID: "",
+			want:    nil,
+		},
+		{
+			name:    "not empty groupID",
+			groupID: "test-group-id",
+			want:    nil,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			if got := WithGroupID(tt.groupID)(&Params{}); !stdErrors.Is(tt.want, got) {
+				t.Errorf("apply WithGroupID() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}

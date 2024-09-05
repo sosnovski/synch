@@ -113,6 +113,7 @@ func (l *Locker) TryLock(ctx context.Context, lockID string, options ...lock.Opt
 		Timeout:           defaultLockTimeout,
 		HeartbeatInterval: defaultHeartbeatInterval,
 		Data:              nil,
+		GroupID:           "",
 	}
 
 	for _, option := range options {
@@ -124,7 +125,7 @@ func (l *Locker) TryLock(ctx context.Context, lockID string, options ...lock.Opt
 	if params.HeartbeatInterval*2 > params.Timeout {
 		return nil, fmt.Errorf(
 			"%w: heartbeet interval %d should be at least twice as small as %d timeout",
-			errors.ErrHeartbeatIntervalToHigh,
+			errors.ErrLockHeartbeatIntervalToHigh,
 			params.HeartbeatInterval,
 			params.Timeout,
 		)

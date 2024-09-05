@@ -88,7 +88,8 @@ type PostgresDialect struct{}
 //		id          	VARCHAR(255) 	PRIMARY KEY,
 //	  	locked_by		VARCHAR(255) 	NOT NULL,
 //	  	locked_at		TIMESTAMPTZ  	NOT NULL,
-//	  	last_heartbeat 	TIMESTAMPTZ		NOT NULL,
+//	  	last_heartbeat	TIMESTAMPTZ		NOT NULL,
+//		group_id		VARCHAR(255)	NOT NULL,
 //	  	data 		    BYTEA
 //	);
 //
@@ -99,6 +100,7 @@ func (PostgresDialect) Migrate(ctx context.Context, conn *sql.DB, tableName stri
      	locked_by      VARCHAR(255) NOT NULL,
      	locked_at      TIMESTAMPTZ 	NOT NULL,
      	last_heartbeat TIMESTAMPTZ 	NOT NULL,
+		group_id		VARCHAR(255) NOT NULL,
 		data 		   BYTEA
 	);`, tableName))
 	if err != nil {
@@ -125,11 +127,11 @@ func (PostgresDialect) Migrate(ctx context.Context, conn *sql.DB, tableName stri
 //
 // The SQL statement used for upserting the record is as follows:
 //
-//	INSERT INTO {tableName} (id, locked_by, locked_at, last_heartbeat, data)
-//	VALUES ($1, $2, NOW(), NOW(), $3)
+//	INSERT INTO {tableName} (id, locked_by, locked_at, last_heartbeat, group, data)
+//	VALUES ($1, $2, NOW(), NOW(), $3, $4)
 //	ON CONFLICT (id) DO UPDATE
-//	SET locked_by = $2, data = $3, locked_at = NOW(), last_heartbeat = NOW()
-//	WHERE locks.last_heartbeat < NOW() - ($4 * interval '1 ms');
+//	SET locked_by = $2, group_id = $3, data = $4, locked_at = NOW(), last_heartbeat = NOW()
+//	WHERE locks.last_heartbeat < NOW() - ($5 * interval '1 ms');
 //
 // The function returns an error if there is an issue executing the database query.
 func (PostgresDialect) UpsertLock(
@@ -139,13 +141,13 @@ func (PostgresDialect) UpsertLock(
 	params lock.Params,
 ) (sql.Result, error) {
 	res, err := conn.ExecContext(ctx, fmt.Sprintf(`
-            INSERT INTO %s as locks (id, locked_by, locked_at, last_heartbeat, data)
-            VALUES ($1, $2, NOW(), NOW(), $3)
+            INSERT INTO %s as locks (id, locked_by, locked_at, last_heartbeat, group_id, data)
+            VALUES ($1, $2, NOW(), NOW(), $3, $4)
             ON CONFLICT (id) DO UPDATE
-            SET locked_by = $2, data = $3, locked_at = NOW(), last_heartbeat = NOW()
-            WHERE locks.last_heartbeat < NOW() - ($4 * interval '1 ms');
+            SET locked_by = $2, group_id = $3, data = $4, locked_at = NOW(), last_heartbeat = NOW()
+            WHERE locks.last_heartbeat < NOW() - ($5 * interval '1 ms');
         `, tableName),
-		params.ID, params.InstanceID, params.Data, params.Timeout.Milliseconds())
+		params.ID, params.InstanceID, params.GroupID, params.Data, params.Timeout.Milliseconds())
 	if err != nil {
 		return nil, fmt.Errorf("upsert to %s: %w", tableName, err)
 	}
@@ -234,6 +236,7 @@ type MysqlDialect struct{}
 //		locked_by		VARCHAR(255) NOT NULL,
 //		locked_at		DATETIME(3)  NOT NULL,
 //		last_heartbeat 	DATETIME(3)  NOT NULL,
+//		group_id		VARCHAR(255) NOT NULL,
 //		data			BLOB
 //	);
 //
@@ -244,6 +247,7 @@ func (MysqlDialect) Migrate(ctx context.Context, conn *sql.DB, tableName string)
      	locked_by      	VARCHAR(255) NOT NULL,
      	locked_at      	DATETIME(3)  NOT NULL,
      	last_heartbeat 	DATETIME(3)  NOT NULL,
+		group_id		VARCHAR(255) NOT NULL,
 		data			BLOB
 	);`, tableName))
 	if err != nil {
@@ -270,11 +274,12 @@ func (MysqlDialect) Migrate(ctx context.Context, conn *sql.DB, tableName string)
 //
 // The SQL statement used for upserting the record is as follows:
 //
-//	INSERT INTO {tableName} (id, locked_by, locked_at, last_heartbeat)
-//	VALUES (?, ?, NOW(3),NOW(3), ?)
+//	INSERT INTO {tableName} (id, locked_by, locked_at, last_heartbeat, group, data)
+//	VALUES (?, ?, NOW(3),NOW(3), ?, ?)
 //	ON DUPLICATE KEY UPDATE
 //	locked_by = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(locked_by), locked_by),
 //	last_heartbeat = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(last_heartbeat), last_heartbeat),
+//	group_id = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(group), group),
 //	data = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(data), data);
 //
 // The function returns an error if there is an issue executing the database query.
@@ -284,17 +289,18 @@ func (MysqlDialect) UpsertLock(
 	tableName string,
 	params lock.Params,
 ) (sql.Result, error) {
-	ms := params.Timeout.Milliseconds()
+	msTimeout := params.Timeout.Milliseconds()
 
 	res, err := conn.ExecContext(ctx, fmt.Sprintf(`
-            INSERT INTO %s (id, locked_by, locked_at, last_heartbeat, data)
-            VALUES (?, ?, NOW(3),NOW(3), ?)
+            INSERT INTO %s (id, locked_by, locked_at, last_heartbeat, group_id, data)
+            VALUES (?, ?, NOW(3),NOW(3), ?, ?)
             ON DUPLICATE KEY UPDATE
 			locked_by = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(locked_by), locked_by),
 			last_heartbeat = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(last_heartbeat), last_heartbeat),
+			group_id = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(group_id), group_id),
 			data = IF(last_heartbeat < (NOW(3) - INTERVAL ?*1000 MICROSECOND), VALUES(data), data);
         `, tableName),
-		params.ID, params.InstanceID, params.Data, ms, ms, ms)
+		params.ID, params.InstanceID, params.GroupID, params.Data, msTimeout, msTimeout, msTimeout, msTimeout)
 	if err != nil {
 		return nil, fmt.Errorf("upsert to %s: %w", tableName, err)
 	}
