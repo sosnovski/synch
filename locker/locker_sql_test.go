@@ -193,7 +193,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithoutMigrate() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -210,7 +210,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithMigrate() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -266,7 +266,7 @@ func (s *LockerSQLTestSuite) TestTryLockAndWaitClose() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -293,7 +293,7 @@ func (s *LockerSQLTestSuite) TestTryLocAndCheckLockFields() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -319,7 +319,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithData() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -344,7 +344,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithGroupID() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -360,7 +360,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithGroupID() {
 func (s *LockerSQLTestSuite) TestCreateLockerWithNilDriver() {
 	t := s.T()
 
-	locker, err := NewLocker(nil)
+	locker, err := New(nil)
 	require.ErrorIs(t, err, errors.ErrDriverIsNil)
 	require.Nil(t, locker)
 }
@@ -385,7 +385,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithLockParamsInstanceID() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -407,7 +407,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithInvalidHeartbeatInterval() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -428,7 +428,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithEmptyLockParamsInstanceID() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -449,7 +449,7 @@ func (s *LockerSQLTestSuite) TestCreateLockerWithInstanceID() {
 		instanceID = fmt.Sprintf("test-instance-%d", time.Now().UnixNano())
 	)
 
-	locker, err := NewLocker(d, WithDefaultInstanceID(instanceID))
+	locker, err := New(d, WithDefaultInstanceID(instanceID))
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -469,7 +469,7 @@ func (s *LockerSQLTestSuite) TestCreateLockerWithEmptyInstanceID() {
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
-	locker, err := NewLocker(d, WithDefaultInstanceID(""))
+	locker, err := New(d, WithDefaultInstanceID(""))
 	require.ErrorIs(t, err, errors.ErrInstanceIDIsEmpty)
 	require.Nil(t, locker)
 }
@@ -492,7 +492,7 @@ func (s *LockerSQLTestSuite) TestHeartbeatFailedByShutdownDB() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -525,7 +525,7 @@ func (s *LockerSQLTestSuite) TestHeartbeatFailedByNoAffectedRows() {
 	)
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -552,7 +552,7 @@ func (s *LockerSQLTestSuite) TestTryLockDo() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -576,7 +576,7 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithError() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -595,7 +595,7 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithCloseError() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -620,7 +620,7 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithLockAlreadyHeld() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -647,7 +647,7 @@ func (s *LockerSQLTestSuite) TestWaitLock() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -665,7 +665,7 @@ func (s *LockerSQLTestSuite) TestWaitLockWithLockAlreadyHeld() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -694,7 +694,7 @@ func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceled() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -722,7 +722,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithDoubleClose() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -745,7 +745,7 @@ func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceledAfterIterate() {
 	require.NoError(t, err)
 
 	ctx, cancel := context.WithCancel(s.ctx)
-	locker, err := NewLocker(d, WithOnWaitIterateError(func(_ context.Context, _ error) {
+	locker, err := New(d, WithOnWaitIterateError(func(_ context.Context, _ error) {
 		if iterate == 0 {
 			cancel()
 		}
@@ -776,7 +776,7 @@ func (s *LockerSQLTestSuite) TestWaitLockDo() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
@@ -805,7 +805,7 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithContextCanceled() {
 	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
 	require.NoError(t, err)
 
-	locker, err := NewLocker(d)
+	locker, err := New(d)
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
