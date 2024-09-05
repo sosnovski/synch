@@ -332,6 +332,31 @@ func (s *LockerSQLTestSuite) TestTryLocWithData() {
 	require.Equal(t, data, l.Data())
 }
 
+func (s *LockerSQLTestSuite) TestTryLocWithGroupID() {
+	t := s.T()
+
+	var (
+		lockID  = fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
+		groupID = "test-group-id"
+	)
+
+	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	require.NoError(t, err)
+	require.NotNil(t, d)
+
+	locker, err := NewLocker(d)
+	require.NoError(t, err)
+	require.NotNil(t, locker)
+
+	l, err := locker.TryLock(s.ctx, lockID, lock.WithGroupID(groupID))
+	require.NoError(t, err)
+	require.NoError(t, l.Close(s.ctx))
+
+	require.Equal(t, lockID, l.ID())
+	require.True(t, strings.HasPrefix(l.InstanceID(), defaultPrefix))
+	require.Equal(t, groupID, l.GroupID())
+}
+
 func (s *LockerSQLTestSuite) TestCreateLockerWithNilDriver() {
 	t := s.T()
 
@@ -390,7 +415,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithInvalidHeartbeatInterval() {
 		lock.WithTimeout(4*time.Second),
 		lock.WithHeartbeatInterval(3*time.Second),
 	)
-	require.ErrorIs(t, err, errors.ErrHeartbeatIntervalToHigh)
+	require.ErrorIs(t, err, errors.ErrLockHeartbeatIntervalToHigh)
 	require.Nil(t, l)
 }
 

@@ -20,6 +20,7 @@ type Lock struct {
 	closer            closer
 	id                string
 	instanceID        string
+	groupID           string
 	data              []byte
 	timeout           time.Duration
 	heartbeatInterval time.Duration
@@ -38,6 +39,7 @@ func NewLock(
 	timeout time.Duration,
 	heartbeatInterval time.Duration,
 	data []byte,
+	groupID string,
 ) *Lock {
 	return &Lock{
 		shutdownCtx:       shutdownCtx,
@@ -48,6 +50,7 @@ func NewLock(
 		timeout:           timeout,
 		heartbeatInterval: heartbeatInterval,
 		data:              data,
+		groupID:           groupID,
 	}
 }
 
@@ -82,6 +85,11 @@ func (l *Lock) Data() []byte {
 	return l.data
 }
 
+// GroupID returns the group id associated with the lock.
+func (l *Lock) GroupID() string {
+	return l.groupID
+}
+
 // Close closes the lock.
 // This method cancels the shutdown context and waits for all Goroutines to finish.
 // It is safe to use concurrently.
@@ -98,6 +106,7 @@ func (l *Lock) Close(ctx context.Context) error {
 type Params struct {
 	ID                string
 	InstanceID        string
+	GroupID           string
 	Data              []byte
 	Timeout           time.Duration
 	HeartbeatInterval time.Duration

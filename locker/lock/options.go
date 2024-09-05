@@ -55,11 +55,22 @@ func WithHeartbeatInterval(interval time.Duration) Option {
 }
 
 // WithData is a LockOption that sets the Data field of the Params struct.
-// The provided data is assigned to the Data field of the Params struct.
+// The provided Data is assigned to the data field of the lock table.
 // It always returns nil error.
 func WithData(data []byte) Option {
 	return func(l *Params) error {
 		l.Data = data
+
+		return nil
+	}
+}
+
+// WithGroupID is a LockOption that sets the GroupID field of the Params struct.
+// The provided GroupID is assigned to the group_id field of the lock table.
+// It always returns nil error.
+func WithGroupID(groupID string) Option {
+	return func(l *Params) error {
+		l.GroupID = groupID
 
 		return nil
 	}

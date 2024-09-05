@@ -154,6 +154,7 @@ func (d *Driver) TryLock(
 		params.Timeout,
 		params.HeartbeatInterval,
 		params.Data,
+		params.GroupID,
 	), nil
 }
 
