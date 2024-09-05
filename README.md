@@ -2,7 +2,7 @@
 
 The synch library represents a compact toolset of synchronization primitives, devised to streamline the process of addressing complex challenges, such as distributed locking or signal handling in concurrent systems.
 
-[![CI](https://github.com/sosnovski/synch/actions/workflows/ci.yml/badge.svg?&event=release)](https://github.com/sosnovski/synch/actions/workflows/ci.yml)
+[![CI](https://github.com/sosnovski/synch/actions/workflows/ci.yml/badge.svg?&event=push)](https://github.com/sosnovski/synch/actions/workflows/ci.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/sosnovski/synch)](https://goreportcard.com/report/github.com/sosnovski/synch)
 [![codecov](https://codecov.io/gh/sosnovski/synch/graph/badge.svg?token=ECXT65ROPR)](https://codecov.io/gh/sosnovski/synch)
 
