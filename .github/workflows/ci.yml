@@ -3,7 +3,7 @@ on:
   pull_request:
   release:
     types:
-      - released
+      - published
 
 permissions:
   contents: read
@@ -47,5 +47,7 @@ jobs:
         with:
           file: cov.out
           token: ${{ secrets.CODECOV_TOKEN }}
+          verbose: true
+          flags: unittests
       - name: Validate test coverage min level
         run: make check-cov
