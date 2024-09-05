@@ -801,7 +801,7 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithContextCanceled() {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
-func TestLockerPostgresSuite(t *testing.T) {
+func TestSQLLockerPostgresDialectSuite(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, &LockerSQLTestSuite{
@@ -814,7 +814,7 @@ func TestLockerPostgresSuite(t *testing.T) {
 	})
 }
 
-func TestLockerMysqlSuite(t *testing.T) {
+func TestSQLLockerMysqlDialectSuite(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, &LockerSQLTestSuite{
@@ -827,15 +827,15 @@ func TestLockerMysqlSuite(t *testing.T) {
 	})
 }
 
-//func TestLockerMariaDBSuite(t *testing.T) {
-//	t.Parallel()
-//
-//	suite.Run(t, &LockerSQLTestSuite{
-//		dialect:         sql.MariaDBDialect{},
-//		containerCreate: createMariaDBContainer,
-//		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
-//			return stdSql.Open("mysql", connectionString)
-//		},
-//		stealQuery: `UPDATE %s SET locked_by = 'some_id' WHERE id = ?`,
-//	})
-//}
+func TestSQLLockerMariadbDialectSuite(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, &LockerSQLTestSuite{
+		dialect:         sql.MariadbDialect{},
+		containerCreate: createMariaDBContainer,
+		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
+			return stdSql.Open("mysql", connectionString)
+		},
+		stealQuery: `UPDATE %s SET locked_by = 'some_id' WHERE id = ?`,
+	})
+}

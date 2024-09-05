@@ -1,5 +1,6 @@
 // Package sql represent lock.Driver implementation for work with SQL databases.
-// It includes implementation Dialect interface for postgres and mysql by PostgresDialect and MysqlDialect structs.
+// It includes implementation Dialect interface for postgres and mysql by PostgresDialect,
+// MysqlDialect and MariadbDialect structs.
 package sql
 
 import (
@@ -115,7 +116,7 @@ func NewDriver(conn *sql.DB, dialect Dialect, options ...Option) (*Driver, error
 // TryLock tries to acquire a lock with the specified parameters.
 // If no rows are affected by the UpsertLock method, it returns an errors.ErrLockAlreadyHeld.
 // If manage to take the lock, the method also starts the heartbeat automatically.
-// If you use PostgresDialect or MysqlDialect their implementations are safe for use concurrently,
+// If you use PostgresDialect, MysqlDialect or MariadbDialect their implementations are safe for use concurrently,
 // in other implementations, safety is not guaranteed.
 func (d *Driver) TryLock(
 	ctx context.Context,
