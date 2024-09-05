@@ -36,17 +36,25 @@ To sum up, this lock client is an essential tool for managing complex situations
 ### Create a new lock
 
 ```go
+import (
+    "database/sql"
+
+    _ "github.com/lib/pq"
+    sqllocker "github.com/sosnovski/synch/locker/sql"
+    "github.com/sosnovski/synch/locker"
+)
+
 conn, err := sql.Open("postgres", "user=postgres password=secret dbname=mydb")
 if err != nil {
     // handle error
 }
 
-driver, err := locker.NewDriver(conn, sql.PostgresDialect{}, WithAutoMigration(true))
+driver, err := sqllocker.NewDriver(conn, sqldriver.PostgresDialect{}, WithAutoMigration(true), WithTableName("locks_v1"))
 if err != nil {
     // handle error
 }
 
-locker, err := NewLocker(driver)
+locker, err := locker.New(driver)
 if err != nil {
     // handle error
 }
