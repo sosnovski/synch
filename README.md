@@ -1,8 +1,9 @@
-# Synch 
+# Synch [![Go Reference](https://pkg.go.dev/badge/github.com/sosnovski/synch.svg)](https://pkg.go.dev/github.com/sosnovski/synch)
 
 The synch library represents a compact toolset of synchronization primitives, devised to streamline the process of addressing complex challenges, such as distributed locking or signal handling in concurrent systems.
 
 [![CI](https://github.com/sosnovski/synch/actions/workflows/ci.yml/badge.svg?&event=release)](https://github.com/sosnovski/synch/actions/workflows/ci.yml)
+[![Go Report Card](https://goreportcard.com/badge/github.com/sosnovski/synch)](https://goreportcard.com/report/github.com/sosnovski/synch)
 
 ## Getting Started
 To use the Synch, you must make sure it is present in $GOPATH or in your vendor directory.
