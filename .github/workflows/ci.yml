@@ -77,6 +77,7 @@ jobs:
       - name: Upload coverage results to Codecov
         uses: codecov/codecov-action@v4
         with:
+          file: cov.out
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: Validate test coverage min level
         run: make check-cov
