@@ -146,7 +146,7 @@ func (d *Driver) TryLock(
 		return nil
 	}
 
-	return lock.NewLock( //nolint:contextcheck //because lock.Lock struct should give a shutdown context
+	return lock.New( //nolint:contextcheck //because lock.Lock struct should give a shutdown context
 		lock.SilentCancelContext(shutdownCtx),
 		shutdownFun,
 		params.ID,
