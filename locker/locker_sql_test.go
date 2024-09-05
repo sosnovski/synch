@@ -15,6 +15,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
+	"github.com/testcontainers/testcontainers-go/modules/mariadb"
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
@@ -113,6 +114,28 @@ func createMysqlContainer(ctx context.Context) (*sqlContainer, error) {
 	connStr, err := mysqlContainer.ConnectionString(ctx)
 	if err != nil {
 		return nil, fmt.Errorf("could not create mysql connection string: %w", err)
+	}
+
+	return &sqlContainer{
+		terminator:       mysqlContainer,
+		connectionString: connStr,
+	}, nil
+}
+
+func createMariaDBContainer(ctx context.Context) (*sqlContainer, error) {
+	mysqlContainer, err := mariadb.Run(ctx,
+		"mariadb:11",
+		mariadb.WithDatabase("test-db"),
+		mariadb.WithUsername("mysql"),
+		mariadb.WithPassword("mysql"),
+	)
+	if err != nil {
+		return nil, fmt.Errorf("run mysql container: %w", err)
+	}
+
+	connStr, err := mysqlContainer.ConnectionString(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("could not create mariadb connection string: %w", err)
 	}
 
 	return &sqlContainer{
@@ -778,7 +801,7 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithContextCanceled() {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
-func TestLockerPostgresSuite(t *testing.T) {
+func TestSQLLockerPostgresDialectSuite(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, &LockerSQLTestSuite{
@@ -791,12 +814,25 @@ func TestLockerPostgresSuite(t *testing.T) {
 	})
 }
 
-func TestLockerMysqlSuite(t *testing.T) {
+func TestSQLLockerMysqlDialectSuite(t *testing.T) {
 	t.Parallel()
 
 	suite.Run(t, &LockerSQLTestSuite{
 		dialect:         sql.MysqlDialect{},
 		containerCreate: createMysqlContainer,
+		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
+			return stdSql.Open("mysql", connectionString)
+		},
+		stealQuery: `UPDATE %s SET locked_by = 'some_id' WHERE id = ?`,
+	})
+}
+
+func TestSQLLockerMariadbDialectSuite(t *testing.T) {
+	t.Parallel()
+
+	suite.Run(t, &LockerSQLTestSuite{
+		dialect:         sql.MariadbDialect{},
+		containerCreate: createMariaDBContainer,
 		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
 			return stdSql.Open("mysql", connectionString)
 		},

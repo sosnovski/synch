@@ -29,6 +29,7 @@ To sum up, this lock client is an essential tool for managing complex situations
 ### Supported dialects for SQL driver
 1. ✅ **Postgres**
 2. ✅ **Mysql**    
+3. ✅ **MariaDB**    
 
 ## Examples
 

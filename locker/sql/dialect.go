@@ -366,3 +366,10 @@ func (MysqlDialect) Heartbeat(
 
 	return res, nil
 }
+
+// MariadbDialect represents a dialect for working with MariaDB databases.
+// Same as MysqlDialect
+// Implements the Dialect and MigrateDialect interface.
+type MariadbDialect struct {
+	MysqlDialect
+}
