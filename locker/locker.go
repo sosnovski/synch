@@ -9,6 +9,7 @@ import (
 	stdErrors "errors"
 	"fmt"
 	"os"
+	"sync"
 	"time"
 
 	"github.com/hashicorp/go-multierror"
@@ -270,16 +271,40 @@ func (l *Locker) WaitLockDo(
 }
 
 // do execute function end return errors if they exist.
-func do(ctx context.Context, lock *lock.Lock, fun func(context.Context) error) (result error) {
-	defer func() {
-		if err := lock.Close(ctx); err != nil {
-			result = multierror.Append(result, fmt.Errorf("close lock: %w", err))
+func do(ctx context.Context, lock *lock.Lock, fun func(context.Context) error) error {
+	var (
+		resultErr error
+		done      = make(chan struct{})
+		mu        = sync.Mutex{}
+		appendErr = func(err error) {
+			mu.Lock()
+			defer mu.Unlock()
+
+			resultErr = multierror.Append(resultErr, err)
 		}
+	)
+	go func() {
+		if err := fun(lock.ShutdownCtx()); err != nil {
+			appendErr(fmt.Errorf("fun: %w", err))
+		}
+		close(done)
 	}()
 
-	if err := fun(ctx); err != nil {
-		result = multierror.Append(result, fmt.Errorf("fun: %w", err))
+	select {
+	case <-ctx.Done():
+		appendErr(ctx.Err())
+	case <-done:
 	}
 
-	return result
+	if err := lock.Close(context.Background()); err != nil {
+		appendErr(fmt.Errorf("close lock: %w", err))
+	}
+
+	<-done
+
+	if resultErr != nil {
+		return resultErr
+	}
+
+	return nil
 }

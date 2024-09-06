@@ -133,6 +133,7 @@ func (d *Driver) TryLock(
 	}
 
 	wg := &sync.WaitGroup{}
+	wg.Add(1)
 	shutdownCtx, shutdown := d.startHeartbeat(wg, params)
 
 	shutdownFun := func(ctx context.Context) error {
@@ -180,13 +181,12 @@ func (d *Driver) startHeartbeat(wg *sync.WaitGroup, params lock.Params) (context
 	shutdownCtx, shutdown := context.WithCancelCause(context.Background())
 
 	go func() {
+		defer wg.Done()
 		ticker := time.NewTicker(params.HeartbeatInterval)
 		defer ticker.Stop()
 
 		for {
-			wg.Add(1)
-
-			if err := d.sendHeartbeat(shutdownCtx, params, wg); err != nil {
+			if err := d.sendHeartbeat(shutdownCtx, params); err != nil {
 				shutdown(fmt.Errorf("failed to send heartbeat: %w", err))
 			}
 
@@ -204,9 +204,7 @@ func (d *Driver) startHeartbeat(wg *sync.WaitGroup, params lock.Params) (context
 
 // sendHeartbeat sends a heartbeat to keep the lock alive.
 // If no rows are affected by the Heartbeat method, it returns an errors.ErrLockHasBeenLost.
-func (d *Driver) sendHeartbeat(ctx context.Context, params lock.Params, wg *sync.WaitGroup) error {
-	defer wg.Done()
-
+func (d *Driver) sendHeartbeat(ctx context.Context, params lock.Params) error {
 	res, err := d.dialect.Heartbeat(ctx, d.conn, d.tableName, params)
 	if err != nil {
 		return fmt.Errorf("heartbeat: %w", err)
