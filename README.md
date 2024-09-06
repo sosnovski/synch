@@ -128,6 +128,7 @@ but perform an anonymous function longer or for an unlimited time.
 The lock is released automatically after exiting the anonymous function.
 
 ```go
+// Wait acquire lock with timeout for 1 minute
 waitLockCtx, cancel := context.WithDeadline(ctx, time.Minute)
 defer cancel()
 
