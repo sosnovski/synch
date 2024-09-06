@@ -233,7 +233,7 @@ func (l *Locker) WaitLock(
 // and tries again until the lock is acquired or the context is canceled.
 // The context in the anonymous function can be canceled if the lock is lost or if the ctx context is done.
 //
-// ctx: context for acquire lock and control how much long time executing anonymous func
+// ctx: context for acquiring and waiting lock and control how much long time executing anonymous func
 // lockID: the ID of the lock to acquire.
 // retryInterval: the duration to wait between retry attempts.
 // fun: the function to be executed.
