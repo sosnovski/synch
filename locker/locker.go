@@ -141,8 +141,9 @@ func (l *Locker) TryLock(ctx context.Context, lockID string, options ...lock.Opt
 }
 
 // TryLockDo attempts to acquire a lock with the given lockID and options, and then executes the provided function.
+// The context in the anonymous function can be canceled if the lock is lost or if the ctx context is done.
 //
-// ctx: context for acquire lock.
+// ctx: context for acquire lock and control how much long time executing anonymous func
 // lockID: the ID of the lock to acquire.
 // fun: the function to be executed.
 // options: options to customize lock acquisition.
@@ -180,7 +181,6 @@ func (l *Locker) TryLockDo(
 
 // WaitLock acquires a lock with the given lockID and options. If acquiring the lock fails,
 // it waits for a specified interval and tries again until the lock is acquired or the context is canceled.
-// If an error occurs during waiting or acquiring the lock, an error is returned.
 //
 // lockID: the ID of the lock to acquire.
 // retryInterval: the duration to wait between retry attempts.
@@ -231,9 +231,9 @@ func (l *Locker) WaitLock(
 // WaitLockDo acquires a lock with the given lockID and options, and then executes the provided function.
 // If acquiring the lock fails, it waits for a specified interval
 // and tries again until the lock is acquired or the context is canceled.
-// If an error occurs during waiting or acquiring the lock, an error is returned.
+// The context in the anonymous function can be canceled if the lock is lost or if the ctx context is done.
 //
-// ctx: context for acquire lock.
+// ctx: context for acquire lock and control how much long time executing anonymous func
 // lockID: the ID of the lock to acquire.
 // retryInterval: the duration to wait between retry attempts.
 // fun: the function to be executed.
@@ -263,6 +263,57 @@ func (l *Locker) WaitLockDo(
 	options ...lock.Option,
 ) error {
 	lockObj, err := l.WaitLock(ctx, lockID, retryInterval, options...)
+	if err != nil {
+		return fmt.Errorf("wait lock: %w", err)
+	}
+
+	return do(ctx, lockObj, fun)
+}
+
+// WaitLockDoWithWaitCtx acquires a lock with the given lockID and options, and then executes the provided function.
+// If acquiring the lock fails, it waits for a specified interval
+// and tries again until the lock is acquired or waitLockCtx context is canceled.
+// This method contains additional waitLockCtx context.
+// This can be useful when you need to wait for a lock to be released for a limited time,
+// but perform an anonymous function longer or for an unlimited time.
+// The context in the anonymous function can be canceled if the lock is lost or if the ctx context is done.
+//
+// ctx: context controls how much long time executing anonymous func.
+// waitLockCtx: context for acquiring and waiting lock.
+// lockID: the ID of the lock to acquire.
+// retryInterval: the duration to wait between retry attempts.
+// fun: the function to be executed.
+// options: options to customize lock acquisition.
+//
+// If successful, after the function is executed,
+// the lock will be released automatically by calling the lock.Close method.
+//
+// Example:
+//
+//	locker, err := New(driver)
+//	if err != nil {
+//	  // handle error
+//	}
+//
+//	waitLockCtx, cancel := context.WithDeadline(ctx, time.Minute)
+//	defer cancel()
+//
+//	err := locker.WaitLockDoWithCustomCtx(ctx, waitLockCtx, "my_lock_id", time.Second, func(_ context.Context) error {
+//		// do something
+//		return nil
+//	})
+//	if err != nil {
+//	  // handle error
+//	}
+func (l *Locker) WaitLockDoWithWaitCtx(
+	ctx context.Context,
+	waitLockCtx context.Context,
+	lockID string,
+	retryInterval time.Duration,
+	fun func(context.Context) error,
+	options ...lock.Option,
+) error {
+	lockObj, err := l.WaitLock(waitLockCtx, lockID, retryInterval, options...)
 	if err != nil {
 		return fmt.Errorf("wait lock: %w", err)
 	}
