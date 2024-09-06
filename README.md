@@ -117,7 +117,7 @@ if err != nil {
 }
 ```
 
-### Wait to acquire a lock and execute anonymous function with custom wait contest
+### Wait to acquire a lock and execute anonymous function with custom wait context
 This method does the same thing as WaitLock, but it is convenient to use it together with an anonymous function.
 The key difference from WaitLockDo, that this method supports a custom context for waiting for the lock to be released.
 This can be useful when you need to wait for a lock to be released for a limited time, 
