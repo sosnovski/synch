@@ -544,7 +544,7 @@ func (s *LockerSQLTestSuite) TestHeartbeatFailedByNoAffectedRows() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDo() {
+func (s *LockerSQLTestSuite) TestTryLockDoWaitDefaultInterval() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
@@ -568,7 +568,49 @@ func (s *LockerSQLTestSuite) TestTryLockDo() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWithError() {
+func (s *LockerSQLTestSuite) TestTryLockDoWithErrorOnClose() {
+	t := s.T()
+
+	defer s.SetupSuite()
+
+	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
+
+	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	require.NoError(t, err)
+
+	locker, err := New(d)
+	require.NoError(t, err)
+	require.NotNil(t, locker)
+
+	err = locker.TryLockDo(s.ctx, lockID, func(_ context.Context) error {
+		s.TearDownSuite()
+
+		return nil
+	})
+
+	require.ErrorContains(t, err, "close lock")
+}
+
+func (s *LockerSQLTestSuite) TestTryLockDoWithReturnNilError() {
+	t := s.T()
+
+	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
+
+	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	require.NoError(t, err)
+
+	locker, err := New(d)
+	require.NoError(t, err)
+	require.NotNil(t, locker)
+
+	err = locker.TryLockDo(s.ctx, lockID, func(_ context.Context) error {
+		return nil
+	})
+
+	require.NoError(t, err)
+}
+
+func (s *LockerSQLTestSuite) TestTryLockDoReturnError() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
@@ -587,7 +629,7 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithError() {
 	require.ErrorIs(t, err, errTest)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWithCloseError() {
+func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContext() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
@@ -599,17 +641,55 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithCloseError() {
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
-	ctx, cancel := context.WithCancel(s.ctx)
+	ctx, cancel := context.WithTimeout(s.ctx, time.Second)
+	defer cancel()
 
 	err = locker.TryLockDo(ctx, lockID, func(_ context.Context) error {
-		cancel()
-
-		return nil
+		for {
+			select {
+			case <-ctx.Done():
+				return nil
+			default:
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
 	})
 
-	require.ErrorIs(t, err, context.Canceled)
-	require.ErrorContains(t, err, "close lock")
-	require.ErrorContains(t, err, "delete lock: delete from ")
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+}
+
+// nolint: err113 //its need for test
+func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContextReturnError() {
+	t := s.T()
+
+	var (
+		lockID  = fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
+		testErr = stdErrors.New("test error")
+	)
+
+	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	require.NoError(t, err)
+
+	locker, err := New(d)
+	require.NoError(t, err)
+	require.NotNil(t, locker)
+
+	ctx, cancel := context.WithTimeout(s.ctx, time.Second)
+	defer cancel()
+
+	err = locker.TryLockDo(ctx, lockID, func(_ context.Context) error {
+		for {
+			select {
+			case <-ctx.Done():
+				return fmt.Errorf("%w: %w", ctx.Err(), testErr)
+			default:
+				time.Sleep(100 * time.Millisecond)
+			}
+		}
+	})
+
+	require.ErrorIs(t, err, context.DeadlineExceeded)
+	require.ErrorIs(t, err, testErr)
 }
 
 func (s *LockerSQLTestSuite) TestTryLockDoWithLockAlreadyHeld() {
