@@ -283,12 +283,14 @@ func do(ctx context.Context, lock *lock.Lock, fun func(context.Context) error) e
 			resultErr = multierror.Append(resultErr, err)
 		}
 	)
-	go func() {
-		if err := fun(lock.ShutdownCtx()); err != nil {
+
+	go func(ctx context.Context) { //nolint: contextcheck // fun must be used lock.ShutdownCtx() for track if lock is lost
+		if err := fun(ctx); err != nil {
 			appendErr(fmt.Errorf("fun: %w", err))
 		}
+
 		close(done)
-	}()
+	}(lock.ShutdownCtx())
 
 	select {
 	case <-ctx.Done():
@@ -296,7 +298,7 @@ func do(ctx context.Context, lock *lock.Lock, fun func(context.Context) error) e
 	case <-done:
 	}
 
-	if err := lock.Close(context.Background()); err != nil {
+	if err := lock.Close(context.Background()); err != nil { //nolint: contextcheck //close must be necessarily executed
 		appendErr(fmt.Errorf("close lock: %w", err))
 	}
 

@@ -182,6 +182,7 @@ func (d *Driver) startHeartbeat(wg *sync.WaitGroup, params lock.Params) (context
 
 	go func() {
 		defer wg.Done()
+
 		ticker := time.NewTicker(params.HeartbeatInterval)
 		defer ticker.Stop()
 

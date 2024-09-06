@@ -658,6 +658,7 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContext() {
 	require.ErrorIs(t, err, context.DeadlineExceeded)
 }
 
+// nolint: err113 //its need for test
 func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContextReturnError() {
 	t := s.T()
 
@@ -680,7 +681,7 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContextReturnError() {
 		for {
 			select {
 			case <-ctx.Done():
-				return testErr
+				return fmt.Errorf("%w: %w", ctx.Err(), testErr)
 			default:
 				time.Sleep(100 * time.Millisecond)
 			}
