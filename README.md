@@ -117,4 +117,21 @@ if err != nil {
 }
 ```
 
+### Wait to acquire a lock and execute anonymous function with custom wait contest
+This method does the same thing as WaitLock, but it is convenient to use it together with an anonymous function.
+The key difference from WaitLockDo, that this method supports a custom context for waiting for the lock to be released.
+This can be useful when you need to wait for a lock to be released for a limited time, 
+but perform an anonymous function longer or for an unlimited time.
+The lock is released automatically after exiting the anonymous function.
+```go
+// Wrap some application logic with a lock and wait when lock is not available
+err := locker.WaitLockDoWithCustomCtx(ctx, "my_lock_id", time.Second, func(_ context.Context) error { 
+	// do something
+	return nil  
+})
+if err != nil {
+  // handle error
+}
+```
+
 To learn more about the Synch project, reviewing the documentation comments in each file may provide more context. Always remember to close the Lock when it's not going to be used anymore.
