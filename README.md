@@ -37,31 +37,31 @@ To sum up, this lock client is an essential tool for managing complex situations
 
 ```go
 import (
-    "database/sql"
+	"database/sql"
 
-    _ "github.com/lib/pq"
-    sqllocker "github.com/sosnovski/synch/locker/sql"
-    "github.com/sosnovski/synch/locker"
+	_ "github.com/lib/pq"
+	sqllocker "github.com/sosnovski/synch/locker/sql"
+	"github.com/sosnovski/synch/locker"
 )
 
 conn, err := sql.Open("postgres", "user=postgres password=secret dbname=mydb")
 if err != nil {
-    // handle error
+	// handle error
 }
 
 driver, err := sqllocker.NewDriver(
-    conn,
-    sqldriver.PostgresDialect{},
-    WithAutoMigration(true),
-    WithTableName("locks_v1"),
+	conn,
+	sqldriver.PostgresDialect{},
+	WithAutoMigration(true),
+	WithTableName("locks_v1"),
 )
 if err != nil {
-    // handle error
+	// handle error
 }
 
 locker, err := locker.New(driver)
 if err != nil {
-    // handle error
+	// handle error
 }
 
 // use locker object
@@ -69,10 +69,11 @@ if err != nil {
 
 ### Try to acquire a lock
 This method tries to take the lock, and if it is already taken by someone, it immediately returns an error.
+
 ```go
 lock, err := locker.TryLock(ctx, "my_lock_id")
 if err != nil {
-    // handle error
+	// handle error
 }
 defer lock.Close(ctx) // Remember to always close the lock when done
 ```
@@ -80,6 +81,7 @@ defer lock.Close(ctx) // Remember to always close the lock when done
 ### Try to acquire a lock and execute anonymous function
 This method does the same thing as TryLock, but it is convenient to use it together with an anonymous function.
 The lock is released automatically after exiting the anonymous function.
+
 ```go
 // Wrap some application logic with a lock
 err := locker.TryLockDo(ctx, "my_lock_id", func(_ context.Context) error {  
@@ -87,7 +89,7 @@ err := locker.TryLockDo(ctx, "my_lock_id", func(_ context.Context) error {
 	return nil // or error
 })  
 if err != nil {  
-  // handle error
+	// handle error
 }
 ```
 
@@ -98,7 +100,7 @@ You can set a timeout using context.WithTimeout or context.WithDealine.
 ```go
 lock, err := locker.WaitLock(ctx, "my_lock_id", time.Second)
 if err != nil {
-  // handle error
+	// handle error
 }
 defer lock.Close(ctx) // Remember to always close the lock when done
 ```
@@ -106,6 +108,7 @@ defer lock.Close(ctx) // Remember to always close the lock when done
 ### Wait to acquire a lock and execute anonymous function 
 This method does the same thing as WaitLock, but it is convenient to use it together with an anonymous function.
 The lock is released automatically after exiting the anonymous function.
+
 ```go
 // Wrap some application logic with a lock and wait when lock is not available
 err := locker.WaitLockDo(ctx, "my_lock_id", time.Second, func(_ context.Context) error { 
@@ -113,7 +116,7 @@ err := locker.WaitLockDo(ctx, "my_lock_id", time.Second, func(_ context.Context)
 	return nil  
 })
 if err != nil {
-  // handle error
+	// handle error
 }
 ```
 
@@ -123,14 +126,19 @@ The key difference from WaitLockDo, that this method supports a custom context f
 This can be useful when you need to wait for a lock to be released for a limited time, 
 but perform an anonymous function longer or for an unlimited time.
 The lock is released automatically after exiting the anonymous function.
+
 ```go
+// Wait acquire lock with timeout for 1 minute
+waitLockCtx, cancel := context.WithDeadline(ctx, time.Minute)
+defer cancel()
+
 // Wrap some application logic with a lock and wait when lock is not available
-err := locker.WaitLockDoWithCustomCtx(ctx, "my_lock_id", time.Second, func(_ context.Context) error { 
+err := locker.WaitLockDoWithCustomCtx(ctx, waitLockCtx, "my_lock_id", time.Second, func(_ context.Context) error { 
 	// do something
 	return nil  
 })
 if err != nil {
-  // handle error
+	// handle error
 }
 ```
 
