@@ -914,15 +914,15 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
 	require.NoError(t, err)
 	require.NotNil(t, locker)
 
-	l, err := locker.TryLock(s.ctx, lockID)
+	lck, err := locker.TryLock(s.ctx, lockID)
 	require.NoError(t, err)
-	require.NotNil(t, l)
+	require.NotNil(t, lck)
 
 	waitCtx, cancel := context.WithCancel(s.ctx)
 
 	time.AfterFunc(defaultHeartbeatInterval, func() {
 		cancel()
-		require.NoError(t, l.Close(s.ctx))
+		require.NoError(t, lck.Close(s.ctx))
 	})
 
 	now := time.Now()
@@ -931,7 +931,7 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
 		return nil
 	})
 
-	<-l.ShutdownCtx().Done()
+	<-lck.ShutdownCtx().Done()
 
 	require.ErrorIs(t, err, context.Canceled)
 	require.ErrorContains(t, err, "wait lock")
