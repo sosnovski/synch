@@ -12,6 +12,9 @@ import (
 
 	_ "github.com/go-sql-driver/mysql"
 	_ "github.com/lib/pq"
+	"github.com/sosnovski/synch/locker/errors"
+	"github.com/sosnovski/synch/locker/lock"
+	"github.com/sosnovski/synch/locker/sql"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 	"github.com/testcontainers/testcontainers-go"
@@ -19,10 +22,6 @@ import (
 	"github.com/testcontainers/testcontainers-go/modules/mysql"
 	"github.com/testcontainers/testcontainers-go/modules/postgres"
 	"github.com/testcontainers/testcontainers-go/wait"
-
-	"github.com/sosnovski/synch/locker/errors"
-	"github.com/sosnovski/synch/locker/lock"
-	"github.com/sosnovski/synch/locker/sql"
 )
 
 var errTest = stdErrors.New("test error")

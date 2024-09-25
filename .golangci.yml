@@ -8,6 +8,7 @@ linters:
     - execinquery
     - funlen
     - containedctx
+    - fatcontext
     - testpackage
     - dupword
 

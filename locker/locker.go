@@ -13,7 +13,6 @@ import (
 	"time"
 
 	"github.com/hashicorp/go-multierror"
-
 	"github.com/sosnovski/synch/locker/errors"
 	"github.com/sosnovski/synch/locker/lock"
 	"github.com/sosnovski/synch/log"
