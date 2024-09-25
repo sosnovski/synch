@@ -20,7 +20,7 @@ jobs:
       - uses: golangci/golangci-lint-action@v6
         with:
           install-mode: binary
-          version: latest
+          version: v1.61.0
 
   test_and_coverage:
     name: Run unit tests & check coverage
