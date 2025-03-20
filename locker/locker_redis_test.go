@@ -296,7 +296,7 @@ func (s *LockerRedisTestSuite) TestHeartbeatFailedByNoKey() {
 
 	cmd := s.client.HSet(s.ctx, fmt.Sprintf("%s:%s", key, lockID), "locked_by", "new_instance_id")
 	require.NoError(t, cmd.Err())
-	require.Equal(t, 0, cmd.Val())
+	require.Equal(t, int64(0), cmd.Val())
 
 	now := time.Now()
 
