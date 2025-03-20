@@ -24,7 +24,7 @@ To sum up, this lock client is an essential tool for managing complex situations
 
 ### Supported Drivers
 1. **SQL**  ✅
-2. Redis (planned)
+2. **Redis** ✅
 
 ### Supported dialects for SQL driver
 1. ✅ **Postgres**

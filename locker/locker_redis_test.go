@@ -2,166 +2,56 @@ package locker
 
 import (
 	"context"
-	stdSql "database/sql"
-	stdErrors "errors"
 	"fmt"
 	"log"
 	"strings"
 	"testing"
 	"time"
 
-	_ "github.com/go-sql-driver/mysql"
-	_ "github.com/lib/pq"
+	"github.com/redis/go-redis/v9"
 	"github.com/sosnovski/synch/locker/errors"
 	"github.com/sosnovski/synch/locker/lock"
-	"github.com/sosnovski/synch/locker/sql"
+	redisDriver "github.com/sosnovski/synch/locker/redis"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
-	"github.com/testcontainers/testcontainers-go"
-	"github.com/testcontainers/testcontainers-go/modules/mariadb"
-	"github.com/testcontainers/testcontainers-go/modules/mysql"
-	"github.com/testcontainers/testcontainers-go/modules/postgres"
-	"github.com/testcontainers/testcontainers-go/wait"
+	redisCont "github.com/testcontainers/testcontainers-go/modules/redis"
 )
 
-var errTest = stdErrors.New("test error")
-
-const (
-	containerStartupTimeout  = 30 * time.Second
-	containerOccurrenceCount = 3
-)
-
-type dialectWithoutMigration struct {
-	dialect sql.Dialect
-}
-
-//nolint:wrapcheck //its only for test
-func (d dialectWithoutMigration) UpsertLock(
-	ctx context.Context,
-	conn *stdSql.DB,
-	tableName string,
-	params lock.Params,
-) (stdSql.Result, error) {
-	return d.dialect.UpsertLock(ctx, conn, tableName, params)
-}
-
-//nolint:wrapcheck //its only for test
-func (d dialectWithoutMigration) DeleteLock(
-	ctx context.Context,
-	conn *stdSql.DB,
-	tableName string,
-	params lock.Params,
-) error {
-	return d.dialect.DeleteLock(ctx, conn, tableName, params)
-}
-
-//nolint:wrapcheck //its only for test
-func (d dialectWithoutMigration) Heartbeat(
-	ctx context.Context,
-	conn *stdSql.DB,
-	tableName string,
-	params lock.Params,
-) (stdSql.Result, error) {
-	return d.dialect.Heartbeat(ctx, conn, tableName, params)
-}
-
-type terminator interface {
-	Terminate(ctx context.Context, opts ...testcontainers.TerminateOption) error
-}
-
-type sqlContainer struct {
+type redisContainer struct {
 	terminator       terminator
 	connectionString string
 }
 
-func createPostgresContainer(tb testing.TB) func(context.Context) (*sqlContainer, error) {
-	return func(ctx context.Context) (*sqlContainer, error) {
-		pgContainer, err := postgres.Run(ctx,
-			"postgres:16",
-			postgres.WithDatabase("test-db"),
-			postgres.WithUsername("postgres"),
-			postgres.WithPassword("postgres"),
-			testcontainers.WithLogger(testcontainers.TestLogger(tb)),
-			testcontainers.WithWaitStrategy(
-				wait.ForLog("database system is ready to accept connections").
-					WithOccurrence(containerOccurrenceCount).
-					WithStartupTimeout(containerStartupTimeout)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("run postgres container: %w", err)
-		}
-
-		connStr, err := pgContainer.ConnectionString(ctx, "sslmode=disable")
-		if err != nil {
-			return nil, fmt.Errorf("could not create postgres connection string: %w", err)
-		}
-
-		return &sqlContainer{
-			terminator:       pgContainer,
-			connectionString: connStr,
-		}, nil
-	}
-}
-
-func createMysqlContainer(tb testing.TB) func(context.Context) (*sqlContainer, error) {
-	return func(ctx context.Context) (*sqlContainer, error) {
-		mysqlContainer, err := mysql.Run(ctx,
-			"mysql:9",
-			mysql.WithDatabase("test-db"),
-			mysql.WithUsername("mysql"),
-			mysql.WithPassword("mysql"),
-			testcontainers.WithLogger(testcontainers.TestLogger(tb)),
-		)
-		if err != nil {
-			return nil, fmt.Errorf("run mysql container: %w", err)
-		}
-
-		connStr, err := mysqlContainer.ConnectionString(ctx)
-		if err != nil {
-			return nil, fmt.Errorf("could not create mysql connection string: %w", err)
-		}
-
-		return &sqlContainer{
-			terminator:       mysqlContainer,
-			connectionString: connStr,
-		}, nil
-	}
-}
-
-func createMariaDBContainer(ctx context.Context) (*sqlContainer, error) {
-	mysqlContainer, err := mariadb.Run(ctx,
-		"mariadb:11",
-		mariadb.WithDatabase("test-db"),
-		mariadb.WithUsername("mysql"),
-		mariadb.WithPassword("mysql"),
+func createRedisContainer(ctx context.Context) (*redisContainer, error) {
+	container, err := redisCont.Run(ctx,
+		"redis:7",
+		redisCont.WithLogLevel(redisCont.LogLevelVerbose),
 	)
 	if err != nil {
-		return nil, fmt.Errorf("run mysql container: %w", err)
+		return nil, fmt.Errorf("run postgres container: %w", err)
 	}
 
-	connStr, err := mysqlContainer.ConnectionString(ctx)
+	connStr, err := container.ConnectionString(ctx)
 	if err != nil {
-		return nil, fmt.Errorf("could not create mariadb connection string: %w", err)
+		return nil, fmt.Errorf("could not create redis connection string: %w", err)
 	}
 
-	return &sqlContainer{
-		terminator:       mysqlContainer,
+	return &redisContainer{
+		terminator:       container,
 		connectionString: connStr,
 	}, nil
 }
 
-type LockerSQLTestSuite struct {
+type LockerRedisTestSuite struct {
 	suite.Suite
-	sqlContainer    *sqlContainer
-	ctx             context.Context
-	conn            *stdSql.DB
-	dialect         sql.Dialect
-	containerCreate func(context.Context) (*sqlContainer, error)
-	connectionFunc  func(connectionString string) (*stdSql.DB, error)
-	stealQuery      string
+	container        *redisContainer
+	client           *redis.Client
+	ctx              context.Context
+	containerCreate  func(context.Context) (*redisContainer, error)
+	createClientFunc func(connectionString string) *redis.Client
 }
 
-func (s *LockerSQLTestSuite) SetupSuite() {
+func (s *LockerRedisTestSuite) SetupSuite() {
 	s.ctx = context.Background()
 
 	container, err := s.containerCreate(s.ctx)
@@ -169,25 +59,28 @@ func (s *LockerSQLTestSuite) SetupSuite() {
 		log.Fatal(err)
 	}
 
-	s.sqlContainer = container
-
-	conn, err := s.connectionFunc(s.sqlContainer.connectionString)
-	s.Require().NoError(err)
-
-	s.conn = conn
+	s.container = container
+	s.client = s.createClientFunc(s.container.connectionString)
 }
 
-func (s *LockerSQLTestSuite) TearDownSuite() {
-	if err := s.conn.Close(); err != nil {
-		log.Fatalf("could not close connection: %v", err)
-	}
-
-	if err := s.sqlContainer.terminator.Terminate(s.ctx); err != nil {
+func (s *LockerRedisTestSuite) TearDownSuite() {
+	if err := s.container.terminator.Terminate(s.ctx); err != nil {
 		log.Fatalf("error terminating container: %s", err)
 	}
 }
 
-func (s *LockerSQLTestSuite) TestTryLockWithoutMigrate() {
+func (s *LockerRedisTestSuite) TestClientIsNil() {
+	t := s.T()
+
+	s.TearDownSuite()
+	s.SetupSuite()
+
+	d, err := redisDriver.NewDriver(nil)
+	require.Nil(t, d)
+	require.ErrorIs(t, err, redisDriver.ErrClientIsNil)
+}
+
+func (s *LockerRedisTestSuite) TestTryLock() {
 	t := s.T()
 
 	s.TearDownSuite()
@@ -195,24 +88,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithoutMigrate() {
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(false))
-	require.NoError(t, err)
-	require.NotNil(t, d)
-
-	locker, err := New(d)
-	require.NoError(t, err)
-	require.NotNil(t, locker)
-
-	_, err = locker.TryLock(s.ctx, lockID)
-	require.ErrorContains(t, err, "exist")
-}
-
-func (s *LockerSQLTestSuite) TestTryLockWithMigrate() {
-	t := s.T()
-
-	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
-
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -225,50 +101,12 @@ func (s *LockerSQLTestSuite) TestTryLockWithMigrate() {
 	require.NoError(t, l.Close(s.ctx))
 }
 
-func (s *LockerSQLTestSuite) TestWithMigrateContextCanceled() {
-	t := s.T()
-
-	ctx, cancel := context.WithCancel(s.ctx)
-	cancel()
-
-	d, err := sql.NewDriver(s.conn,
-		s.dialect,
-		sql.WithAutoMigration(true),
-		sql.WithMigrationContext(ctx),
-	)
-	require.ErrorIs(t, err, context.Canceled)
-	require.Nil(t, d)
-}
-
-func (s *LockerSQLTestSuite) TestWithNilMigrateContextCanceled() {
-	t := s.T()
-
-	d, err := sql.NewDriver(s.conn,
-		s.dialect,
-		sql.WithAutoMigration(true),
-		sql.WithMigrationContext(nil), //nolint: staticcheck //case it is a unit-test
-	)
-	require.ErrorIs(t, err, sql.ErrMigrationContextMustBeSet)
-	require.Nil(t, d)
-}
-
-func (s *LockerSQLTestSuite) TestMigrateWithNonImplementMigrateDialect() {
-	t := s.T()
-
-	d, err := sql.NewDriver(s.conn, dialectWithoutMigration{dialect: s.dialect})
-	require.NoError(t, err)
-	require.NotNil(t, d)
-
-	err = d.Migrate(s.ctx)
-	require.ErrorIs(t, err, sql.ErrDialectNotImplementMigrate)
-}
-
-func (s *LockerSQLTestSuite) TestTryLockAndWaitClose() {
+func (s *LockerRedisTestSuite) TestTryLockAndWaitClose() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -290,12 +128,12 @@ func (s *LockerSQLTestSuite) TestTryLockAndWaitClose() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestTryLocAndCheckLockFields() {
+func (s *LockerRedisTestSuite) TestTryLocAndCheckLockFields() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -313,7 +151,7 @@ func (s *LockerSQLTestSuite) TestTryLocAndCheckLockFields() {
 	require.Equal(t, defaultHeartbeatInterval, l.HeartbeatInterval())
 }
 
-func (s *LockerSQLTestSuite) TestTryLocWithData() {
+func (s *LockerRedisTestSuite) TestTryLocWithData() {
 	t := s.T()
 
 	var (
@@ -321,7 +159,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithData() {
 		data   = []byte("some data")
 	)
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -338,7 +176,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithData() {
 	require.Equal(t, data, l.Data())
 }
 
-func (s *LockerSQLTestSuite) TestTryLocWithGroupID() {
+func (s *LockerRedisTestSuite) TestTryLocWithGroupID() {
 	t := s.T()
 
 	var (
@@ -346,7 +184,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithGroupID() {
 		groupID = "test-group-id"
 	)
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -363,23 +201,7 @@ func (s *LockerSQLTestSuite) TestTryLocWithGroupID() {
 	require.Equal(t, groupID, l.GroupID())
 }
 
-func (s *LockerSQLTestSuite) TestCreateLockerWithNilDriver() {
-	t := s.T()
-
-	locker, err := New(nil)
-	require.ErrorIs(t, err, errors.ErrDriverIsNil)
-	require.Nil(t, locker)
-}
-
-func (s *LockerSQLTestSuite) TestCreateDriverWithNilConnection() {
-	t := s.T()
-
-	d, err := sql.NewDriver(nil, s.dialect)
-	require.ErrorIs(t, err, sql.ErrConnIsNil)
-	require.Nil(t, d)
-}
-
-func (s *LockerSQLTestSuite) TestTryLockWithLockParamsInstanceID() {
+func (s *LockerRedisTestSuite) TestTryLockWithLockParamsInstanceID() {
 	t := s.T()
 
 	var (
@@ -387,7 +209,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithLockParamsInstanceID() {
 		instanceID = fmt.Sprintf("test-instance-%d", time.Now().UnixNano())
 	)
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -404,12 +226,12 @@ func (s *LockerSQLTestSuite) TestTryLockWithLockParamsInstanceID() {
 	require.Equal(t, l.InstanceID(), instanceID)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockWithInvalidHeartbeatInterval() {
+func (s *LockerRedisTestSuite) TestTryLockWithInvalidHeartbeatInterval() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
 	require.NotNil(t, d)
 
@@ -425,78 +247,16 @@ func (s *LockerSQLTestSuite) TestTryLockWithInvalidHeartbeatInterval() {
 	require.Nil(t, l)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockWithEmptyLockParamsInstanceID() {
-	t := s.T()
-
-	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
-
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
-	require.NoError(t, err)
-	require.NotNil(t, d)
-
-	locker, err := New(d)
-	require.NoError(t, err)
-	require.NotNil(t, locker)
-
-	l, err := locker.TryLock(s.ctx, lockID, lock.WithInstanceID(""))
-	require.ErrorIs(t, err, errors.ErrInstanceIDIsEmpty)
-	require.Nil(t, l)
-}
-
-func (s *LockerSQLTestSuite) TestCreateLockerWithInstanceID() {
-	t := s.T()
-
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
-	require.NoError(t, err)
-	require.NotNil(t, d)
-
-	var (
-		lockID     = fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
-		instanceID = fmt.Sprintf("test-instance-%d", time.Now().UnixNano())
-	)
-
-	locker, err := New(d, WithDefaultInstanceID(instanceID))
-	require.NoError(t, err)
-	require.NotNil(t, locker)
-
-	l, err := locker.TryLock(s.ctx, lockID)
-	require.NoError(t, err)
-	require.NotNil(t, locker)
-	require.NoError(t, l.Close(s.ctx))
-
-	require.Equal(t, l.ID(), lockID)
-	require.Equal(t, l.InstanceID(), instanceID)
-}
-
-func (s *LockerSQLTestSuite) TestCreateLockerWithEmptyInstanceID() {
-	t := s.T()
-
-	d, err := sql.NewDriver(s.conn, s.dialect)
-	require.NoError(t, err)
-	require.NotNil(t, d)
-
-	locker, err := New(d, WithDefaultInstanceID(""))
-	require.ErrorIs(t, err, errors.ErrInstanceIDIsEmpty)
-	require.Nil(t, locker)
-}
-
-func (s *LockerSQLTestSuite) TestCreateDriverWithNilDialect() {
-	t := s.T()
-
-	d, err := sql.NewDriver(s.conn, nil)
-	require.ErrorIs(t, err, sql.ErrDialectIsNil)
-	require.Nil(t, d)
-}
-
-func (s *LockerSQLTestSuite) TestHeartbeatFailedByShutdownDB() {
+func (s *LockerRedisTestSuite) TestHeartbeatFailedByShutdownDB() {
 	t := s.T()
 
 	defer s.SetupSuite()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -516,20 +276,16 @@ func (s *LockerSQLTestSuite) TestHeartbeatFailedByShutdownDB() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestHeartbeatFailedByNoAffectedRows() {
+func (s *LockerRedisTestSuite) TestHeartbeatFailedByNoKey() {
 	t := s.T()
 
-	var (
-		lockID    = fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
-		tableName = "test_locks"
-	)
+	var lockID = fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn,
-		s.dialect,
-		sql.WithAutoMigration(true),
-		sql.WithTableName(tableName),
-	)
+	const key = "test_key"
+
+	d, err := redisDriver.NewDriver(s.client, redisDriver.WithPrefixLockKey(key))
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -538,8 +294,9 @@ func (s *LockerSQLTestSuite) TestHeartbeatFailedByNoAffectedRows() {
 	l, err := locker.TryLock(s.ctx, lockID)
 	require.NoError(t, err)
 
-	_, err = s.conn.Exec(fmt.Sprintf(s.stealQuery, tableName), lockID)
-	require.NoError(t, err)
+	cmd := s.client.HSet(s.ctx, fmt.Sprintf("%s:%s", key, lockID), "locked_by", "new_instance_id")
+	require.NoError(t, cmd.Err())
+	require.True(t, cmd.Val() == 0)
 
 	now := time.Now()
 
@@ -550,13 +307,14 @@ func (s *LockerSQLTestSuite) TestHeartbeatFailedByNoAffectedRows() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWaitDefaultInterval() {
+func (s *LockerRedisTestSuite) TestTryLockDoWaitDefaultInterval() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -574,15 +332,16 @@ func (s *LockerSQLTestSuite) TestTryLockDoWaitDefaultInterval() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWithErrorOnClose() {
+func (s *LockerRedisTestSuite) TestTryLockDoWithErrorOnClose() {
 	t := s.T()
 
 	defer s.SetupSuite()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -597,13 +356,14 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithErrorOnClose() {
 	require.ErrorContains(t, err, "close lock")
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWithReturnNilError() {
+func (s *LockerRedisTestSuite) TestTryLockDoWithReturnNilError() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -616,13 +376,14 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithReturnNilError() {
 	require.NoError(t, err)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoReturnError() {
+func (s *LockerRedisTestSuite) TestTryLockDoReturnError() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -635,13 +396,14 @@ func (s *LockerSQLTestSuite) TestTryLockDoReturnError() {
 	require.ErrorIs(t, err, errTest)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContext() {
+func (s *LockerRedisTestSuite) TestTryLockDoWithLoopClosedByContext() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -665,13 +427,14 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContext() {
 }
 
 // nolint: wrapcheck //its need for test
-func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContextReturnError() {
+func (s *LockerRedisTestSuite) TestTryLockDoWithLoopClosedByContextReturnError() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -695,13 +458,14 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithLoopClosedByContextReturnError() {
 	require.ErrorIs(t, err, errTest)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockDoWithLockAlreadyHeld() {
+func (s *LockerRedisTestSuite) TestTryLockDoWithLockAlreadyHeld() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -722,13 +486,14 @@ func (s *LockerSQLTestSuite) TestTryLockDoWithLockAlreadyHeld() {
 	require.ErrorIs(t, err, errors.ErrLockAlreadyHeld)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLock() {
+func (s *LockerRedisTestSuite) TestWaitLock() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -740,13 +505,14 @@ func (s *LockerSQLTestSuite) TestWaitLock() {
 	require.NoError(t, lock2.Close(s.ctx))
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockWithLockAlreadyHeld() {
+func (s *LockerRedisTestSuite) TestWaitLockWithLockAlreadyHeld() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -769,13 +535,14 @@ func (s *LockerSQLTestSuite) TestWaitLockWithLockAlreadyHeld() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval*2+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceled() {
+func (s *LockerRedisTestSuite) TestWaitLockWithContextCanceled() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -797,13 +564,14 @@ func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceled() {
 	require.Nil(t, lock2)
 }
 
-func (s *LockerSQLTestSuite) TestTryLockWithDoubleClose() {
+func (s *LockerRedisTestSuite) TestTryLockWithDoubleClose() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -816,7 +584,7 @@ func (s *LockerSQLTestSuite) TestTryLockWithDoubleClose() {
 	require.NoError(t, l.Close(s.ctx))
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceledAfterIterate() {
+func (s *LockerRedisTestSuite) TestWaitLockWithContextCanceledAfterIterate() {
 	t := s.T()
 
 	var (
@@ -824,8 +592,9 @@ func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceledAfterIterate() {
 		iterate = 0
 	)
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	ctx, cancel := context.WithCancel(s.ctx)
 	locker, err := New(d, WithOnWaitIterateError(func(_ context.Context, _ error) {
@@ -851,13 +620,14 @@ func (s *LockerSQLTestSuite) TestWaitLockWithContextCanceledAfterIterate() {
 	require.Nil(t, lock2)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockDo() {
+func (s *LockerRedisTestSuite) TestWaitLockDo() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -880,13 +650,14 @@ func (s *LockerSQLTestSuite) TestWaitLockDo() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval*2+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtx() {
+func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtx() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -909,13 +680,14 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtx() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval*2+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
+func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -945,13 +717,14 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval*2+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtx() {
+func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtx() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -978,13 +751,14 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtx() {
 }
 
 // nolint: wrapcheck //its need for test
-func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtxWithReturnError() {
+func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtxWithReturnError() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -1012,13 +786,14 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtxWithReturnErro
 }
 
 // nolint: wrapcheck //its need for test
-func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxWithReturnError() {
+func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxWithReturnError() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -1042,13 +817,14 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithWaitCtxWithReturnError() {
 	require.Less(t, time.Since(now), defaultHeartbeatInterval*2+150*time.Millisecond)
 }
 
-func (s *LockerSQLTestSuite) TestWaitLockDoWithContextCanceled() {
+func (s *LockerRedisTestSuite) TestWaitLockDoWithContextCanceled() {
 	t := s.T()
 
 	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
-	d, err := sql.NewDriver(s.conn, s.dialect, sql.WithAutoMigration(true))
+	d, err := redisDriver.NewDriver(s.client)
 	require.NoError(t, err)
+	require.NotNil(t, d)
 
 	locker, err := New(d)
 	require.NoError(t, err)
@@ -1071,41 +847,15 @@ func (s *LockerSQLTestSuite) TestWaitLockDoWithContextCanceled() {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
-func TestSQLLockerPostgresDialectSuite(t *testing.T) {
+func TestRedisLockerSuite(t *testing.T) {
 	t.Parallel()
 
-	suite.Run(t, &LockerSQLTestSuite{
-		dialect:         sql.PostgresDialect{},
-		containerCreate: createPostgresContainer(t),
-		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
-			return stdSql.Open("postgres", connectionString)
+	suite.Run(t, &LockerRedisTestSuite{
+		containerCreate: createRedisContainer,
+		createClientFunc: func(connectionString string) *redis.Client {
+			return redis.NewClient(&redis.Options{
+				Addr: strings.ReplaceAll(connectionString, "redis://", ""),
+			})
 		},
-		stealQuery: `UPDATE %s SET locked_by = 'some_id' WHERE id = $1`,
-	})
-}
-
-func TestSQLLockerMysqlDialectSuite(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, &LockerSQLTestSuite{
-		dialect:         sql.MysqlDialect{},
-		containerCreate: createMysqlContainer(t),
-		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
-			return stdSql.Open("mysql", connectionString)
-		},
-		stealQuery: `UPDATE %s SET locked_by = 'some_id' WHERE id = ?`,
-	})
-}
-
-func TestSQLLockerMariadbDialectSuite(t *testing.T) {
-	t.Parallel()
-
-	suite.Run(t, &LockerSQLTestSuite{
-		dialect:         sql.MariadbDialect{},
-		containerCreate: createMariaDBContainer,
-		connectionFunc: func(connectionString string) (*stdSql.DB, error) {
-			return stdSql.Open("mysql", connectionString)
-		},
-		stealQuery: `UPDATE %s SET locked_by = 'some_id' WHERE id = ?`,
 	})
 }
