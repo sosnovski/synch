@@ -27,8 +27,8 @@ import (
 var errTest = stdErrors.New("test error")
 
 const (
-	containerStartupTimeout  = 30 * time.Second
-	containerOccurrenceCount = 3
+	containerStartupTimeout  = 5 * time.Second
+	containerOccurrenceCount = 2
 )
 
 type dialectWithoutMigration struct {
