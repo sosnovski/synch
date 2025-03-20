@@ -20,21 +20,21 @@ func TestSilentCancelContext_Err(t *testing.T) {
 		{
 			name: "context.Background",
 			context: func() context.Context {
-				return context.Background()
+				return t.Context()
 			},
 			wantErr: nil,
 		},
 		{
 			name: "context.TODO",
 			context: func() context.Context {
-				return context.TODO()
+				return t.Context()
 			},
 			wantErr: nil,
 		},
 		{
 			name: "context.WithCancel",
 			context: func() context.Context {
-				ctx, cancel := context.WithCancel(context.Background())
+				ctx, cancel := context.WithCancel(t.Context())
 				defer cancel()
 
 				return ctx
@@ -44,7 +44,7 @@ func TestSilentCancelContext_Err(t *testing.T) {
 		{
 			name: "context.WithTimeout",
 			context: func() context.Context {
-				ctx, cancel := context.WithTimeout(context.Background(), 0)
+				ctx, cancel := context.WithTimeout(t.Context(), 0)
 				defer cancel()
 
 				return ctx
@@ -54,7 +54,7 @@ func TestSilentCancelContext_Err(t *testing.T) {
 		{
 			name: "context.WithDeadline",
 			context: func() context.Context {
-				ctx, cancel := context.WithDeadline(context.Background(), time.Time{})
+				ctx, cancel := context.WithDeadline(t.Context(), time.Time{})
 				defer cancel()
 
 				return ctx
@@ -64,7 +64,7 @@ func TestSilentCancelContext_Err(t *testing.T) {
 		{
 			name: "context.WithCancelCause with testErr assert testErr",
 			context: func() context.Context {
-				ctx, cancel := context.WithCancelCause(context.Background())
+				ctx, cancel := context.WithCancelCause(t.Context())
 				defer cancel(errTest)
 
 				return ctx
@@ -74,7 +74,7 @@ func TestSilentCancelContext_Err(t *testing.T) {
 		{
 			name: "context.WithCancelCause with nil error",
 			context: func() context.Context {
-				ctx, cancel := context.WithCancelCause(context.Background())
+				ctx, cancel := context.WithCancelCause(t.Context())
 				defer cancel(nil)
 
 				return ctx
@@ -84,7 +84,7 @@ func TestSilentCancelContext_Err(t *testing.T) {
 		{
 			name: "context.WithCancelCause with testErr assert context.Canceled",
 			context: func() context.Context {
-				ctx, cancel := context.WithCancelCause(context.Background())
+				ctx, cancel := context.WithCancelCause(t.Context())
 				defer cancel(errTest)
 
 				return ctx

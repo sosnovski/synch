@@ -131,7 +131,7 @@ func TestApplyWithMigrationContext(t *testing.T) {
 		},
 		{
 			name: "not nil context with implement MigrateDialect",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			driver: func() *Driver {
 				return &Driver{
 					dialect: &PostgresDialect{},
@@ -141,7 +141,7 @@ func TestApplyWithMigrationContext(t *testing.T) {
 		},
 		{
 			name: "not nil context with not implement MigrateDialect",
-			ctx:  context.Background(),
+			ctx:  t.Context(),
 			driver: func() *Driver {
 				return &Driver{
 					dialect: nil,

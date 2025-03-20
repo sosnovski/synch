@@ -50,6 +50,7 @@ func (d *Driver) TryLock(ctx context.Context, params lock.Params) (*lock.Lock, e
 	key := d.key(params)
 
 	var cmds []*redis.BoolCmd
+
 	_, err := d.cli.TxPipelined(ctx, func(pipe redis.Pipeliner) error {
 		cmds = append(cmds,
 			pipe.HSetNX(ctx, key, lockedByField, params.InstanceID),
@@ -68,6 +69,7 @@ func (d *Driver) TryLock(ctx context.Context, params lock.Params) (*lock.Lock, e
 		locked      bool
 		commandErrs error
 	)
+
 	for _, cmd := range cmds {
 		ok, err := cmd.Result()
 		if err != nil {
@@ -160,7 +162,12 @@ func (d *Driver) sendHeartbeat(ctx context.Context, key string, params lock.Para
 		return fmt.Errorf("eval: %w", err)
 	}
 
-	if res.(int64) != 1 {
+	count, ok := res.(int64)
+	if !ok {
+		return fmt.Errorf("eval: got %T, expected int64", res) //nolint: err113 // because it is not expected
+	}
+
+	if count != 1 {
 		return errors.ErrLockHasBeenLost
 	}
 

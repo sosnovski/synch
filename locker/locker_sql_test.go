@@ -75,6 +75,8 @@ type sqlContainer struct {
 }
 
 func createPostgresContainer(tb testing.TB) func(context.Context) (*sqlContainer, error) {
+	tb.Helper()
+
 	return func(ctx context.Context) (*sqlContainer, error) {
 		pgContainer, err := postgres.Run(ctx,
 			"postgres:16",
@@ -104,6 +106,8 @@ func createPostgresContainer(tb testing.TB) func(context.Context) (*sqlContainer
 }
 
 func createMysqlContainer(tb testing.TB) func(context.Context) (*sqlContainer, error) {
+	tb.Helper()
+
 	return func(ctx context.Context) (*sqlContainer, error) {
 		mysqlContainer, err := mysql.Run(ctx,
 			"mysql:9",

@@ -279,7 +279,7 @@ func (s *LockerRedisTestSuite) TestHeartbeatFailedByShutdownDB() {
 func (s *LockerRedisTestSuite) TestHeartbeatFailedByNoKey() {
 	t := s.T()
 
-	var lockID = fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
+	lockID := fmt.Sprintf("test-lock-%d", time.Now().UnixNano())
 
 	const key = "test_key"
 
@@ -296,7 +296,7 @@ func (s *LockerRedisTestSuite) TestHeartbeatFailedByNoKey() {
 
 	cmd := s.client.HSet(s.ctx, fmt.Sprintf("%s:%s", key, lockID), "locked_by", "new_instance_id")
 	require.NoError(t, cmd.Err())
-	require.True(t, cmd.Val() == 0)
+	require.Equal(t, 0, cmd.Val())
 
 	now := time.Now()
 
