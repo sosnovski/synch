@@ -162,11 +162,7 @@ func (d *Driver) sendHeartbeat(ctx context.Context, key string, params lock.Para
 		return fmt.Errorf("eval: %w", err)
 	}
 
-	count, ok := res.(int64)
-	if !ok {
-		return fmt.Errorf("eval: got %T, expected int64", res) //nolint: err113 // because it is not expected
-	}
-
+	count, _ := res.(int64)
 	if count != 1 {
 		return errors.ErrLockHasBeenLost
 	}
