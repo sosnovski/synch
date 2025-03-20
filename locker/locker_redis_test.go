@@ -80,6 +80,18 @@ func (s *LockerRedisTestSuite) TestClientIsNil() {
 	require.ErrorIs(t, err, redisDriver.ErrClientIsNil)
 }
 
+func (s *LockerRedisTestSuite) TestNewDriverWithErrorOptions() {
+	t := s.T()
+
+	s.TearDownSuite()
+	s.SetupSuite()
+
+	d, err := redisDriver.NewDriver(s.client, redisDriver.WithPrefixLockKey(""))
+	require.ErrorIs(t, err, redisDriver.ErrApplyOptions)
+	require.ErrorIs(t, err, redisDriver.ErrPrefixLockKeyIsEmpty)
+	require.Nil(t, d)
+}
+
 func (s *LockerRedisTestSuite) TestTryLock() {
 	t := s.T()
 

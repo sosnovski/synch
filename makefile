@@ -1,6 +1,6 @@
 #!/bin/sh
 
-MIN_COV = 98.0
+MIN_COV = 100
 
 bin/: ; mkdir -p $@
 

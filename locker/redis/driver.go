@@ -6,7 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"github.com/hashicorp/go-multierror"
 	"github.com/redis/go-redis/v9"
 	"github.com/sosnovski/synch/locker/errors"
 	"github.com/sosnovski/synch/locker/lock"
@@ -65,26 +64,10 @@ func (d *Driver) TryLock(ctx context.Context, params lock.Params) (*lock.Lock, e
 		return nil, fmt.Errorf("tx pipelined: %w", err)
 	}
 
-	var (
-		locked      bool
-		commandErrs error
-	)
-
 	for _, cmd := range cmds {
-		ok, err := cmd.Result()
-		if err != nil {
-			commandErrs = multierror.Append(commandErrs, fmt.Errorf("%w: %w", ErrCommandFailed, cmd.Err()))
+		if !cmd.Val() {
+			return nil, errors.ErrLockAlreadyHeld
 		}
-
-		locked = locked || !ok
-	}
-
-	if commandErrs != nil {
-		return nil, commandErrs
-	}
-
-	if locked {
-		return nil, errors.ErrLockAlreadyHeld
 	}
 
 	wg := &sync.WaitGroup{}
