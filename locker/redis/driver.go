@@ -55,7 +55,7 @@ func (d *Driver) TryLock(ctx context.Context, params lock.Params) (*lock.Lock, e
 			pipe.HSetNX(ctx, key, lockedByField, params.InstanceID),
 			pipe.HSetNX(ctx, key, groupIDField, params.GroupID),
 			pipe.HSetNX(ctx, key, dataField, params.Data),
-			pipe.Expire(ctx, key, params.Timeout),
+			pipe.ExpireNX(ctx, key, params.Timeout),
 		)
 
 		return nil
