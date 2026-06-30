@@ -711,10 +711,10 @@ func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
 
 	waitCtx, cancel := context.WithCancel(s.ctx)
 
-	time.AfterFunc(defaultHeartbeatInterval, func() {
-		cancel()
-		require.NoError(t, lck.Close(s.ctx))
-	})
+	// Cancel only the wait context and keep lck held for the whole wait: WaitLock keeps
+	// retrying and deterministically gives up on the cancelled wait ctx, instead of racing
+	// to acquire a lock freed by lck.Close at the same instant.
+	time.AfterFunc(defaultHeartbeatInterval, cancel)
 
 	now := time.Now()
 
@@ -722,11 +722,10 @@ func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseWaitCtx() {
 		return nil
 	})
 
-	<-lck.ShutdownCtx().Done()
-
 	require.ErrorIs(t, err, context.Canceled)
 	require.ErrorContains(t, err, "wait lock")
 	require.Less(t, time.Since(now), defaultHeartbeatInterval*2+150*time.Millisecond)
+	require.NoError(t, lck.Close(s.ctx))
 }
 
 func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtx() {
@@ -755,7 +754,11 @@ func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtx() {
 
 	now := time.Now()
 
-	err = locker.WaitLockDoWithWaitCtx(mainCtx, s.ctx, lockID, time.Second, func(_ context.Context) error {
+	// Block until the run context is cancelled so do()'s select deterministically observes
+	// the cancelled main ctx (a fast-returning func races the ctx.Done branch).
+	err = locker.WaitLockDoWithWaitCtx(mainCtx, s.ctx, lockID, time.Second, func(ctx context.Context) error {
+		<-ctx.Done()
+
 		return nil
 	})
 	require.ErrorIs(t, err, context.Canceled)
@@ -789,7 +792,11 @@ func (s *LockerRedisTestSuite) TestWaitLockDoWithWaitCtxCloseMainCtxWithReturnEr
 
 	now := time.Now()
 
-	err = locker.WaitLockDoWithWaitCtx(mainCtx, s.ctx, lockID, time.Second, func(_ context.Context) error {
+	// Block until the run context is cancelled so do() observes the cancelled main ctx
+	// (Canceled) in addition to the func's returned error.
+	err = locker.WaitLockDoWithWaitCtx(mainCtx, s.ctx, lockID, time.Second, func(ctx context.Context) error {
+		<-ctx.Done()
+
 		return errTest
 	})
 	require.ErrorIs(t, err, context.Canceled)
