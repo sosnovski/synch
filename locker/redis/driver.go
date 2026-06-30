@@ -128,7 +128,7 @@ func (d *Driver) sendHeartbeat(ctx context.Context, key string, params lock.Para
 	script := `
 		local locked_by = redis.call("HGET", KEYS[1], ARGV[1])
 		if locked_by == ARGV[2] then
-			return redis.call("EXPIRE", KEYS[1], ARGV[3])
+			return redis.call("PEXPIRE", KEYS[1], ARGV[3])
 		else
 			return 0
 		end
@@ -139,7 +139,7 @@ func (d *Driver) sendHeartbeat(ctx context.Context, key string, params lock.Para
 		[]string{key},
 		lockedByField,
 		params.InstanceID,
-		params.Timeout,
+		params.Timeout.Milliseconds(),
 	).Result()
 	if err != nil {
 		return fmt.Errorf("eval: %w", err)

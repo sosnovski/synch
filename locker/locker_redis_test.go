@@ -859,6 +859,42 @@ func (s *LockerRedisTestSuite) TestWaitLockDoWithContextCanceled() {
 	require.ErrorIs(t, err, context.Canceled)
 }
 
+// TestHeartbeatKeepsLeaseTtlSane guards against the v1.5.2 regression where the
+// heartbeat passed a raw time.Duration (nanoseconds) into a Lua EXPIRE call, which
+// set a ~158-year TTL on every refresh and broke lease expiry for crashed holders.
+func (s *LockerRedisTestSuite) TestHeartbeatKeepsLeaseTtlSane() {
+	t := s.T()
+
+	lockID := fmt.Sprintf("ttl-sane-%d", time.Now().UnixNano())
+	timeout := 2 * time.Second
+
+	d, err := redisDriver.NewDriver(s.client)
+	require.NoError(t, err)
+
+	locker, err := New(d)
+	require.NoError(t, err)
+
+	l, err := locker.TryLock(s.ctx, lockID,
+		lock.WithTimeout(timeout),
+		lock.WithHeartbeatInterval(500*time.Millisecond),
+	)
+	require.NoError(t, err)
+
+	defer func() { require.NoError(t, l.Close(s.ctx)) }()
+
+	// let at least one heartbeat refresh the lease
+	time.Sleep(700 * time.Millisecond)
+
+	keys, err := s.client.Keys(s.ctx, "*:"+lockID).Result()
+	require.NoError(t, err)
+	require.Len(t, keys, 1)
+
+	pttl, err := s.client.PTTL(s.ctx, keys[0]).Result()
+	require.NoError(t, err)
+	require.Greater(t, pttl, time.Duration(0))
+	require.LessOrEqual(t, pttl, timeout)
+}
+
 func TestRedisLockerSuite(t *testing.T) {
 	t.Parallel()
 
