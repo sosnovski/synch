@@ -139,7 +139,7 @@ func (d *Driver) sendHeartbeat(ctx context.Context, key string, params lock.Para
 		[]string{key},
 		lockedByField,
 		params.InstanceID,
-		int(params.Timeout.Seconds()),
+		params.Timeout,
 	).Result()
 	if err != nil {
 		return fmt.Errorf("eval: %w", err)

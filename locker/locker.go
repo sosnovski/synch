@@ -297,7 +297,7 @@ func (l *Locker) WaitLockDo(
 //	waitLockCtx, cancel := context.WithDeadline(ctx, time.Minute)
 //	defer cancel()
 //
-//	err := locker.WaitLockDoWithCustomCtx(ctx, waitLockCtx, "my_lock_id", time.Second, func(_ context.Context) error {
+//	err := locker.WaitLockDoWithWaitCtx(ctx, waitLockCtx, "my_lock_id", time.Second, func(_ context.Context) error {
 //		// do something
 //		return nil
 //	})

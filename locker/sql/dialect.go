@@ -169,13 +169,14 @@ func (PostgresDialect) UpsertLock(
 //
 // The SQL statement used for deleting the records is as follows:
 //
-//	DELETE FROM {tableName} WHERE locked_by = $1
+//	DELETE FROM {tableName} WHERE id = $1 AND locked_by = $2
 //
 // The value for the placeholder in the SQL statement is provided by the InstanceID parameter.
 // The function returns an error if there is an issue executing the database query.
 func (PostgresDialect) DeleteLock(ctx context.Context, conn *sql.DB, tableName string, params lock.Params) error {
 	_, err := conn.ExecContext(ctx,
-		fmt.Sprintf(`DELETE FROM %s WHERE locked_by = $1;`, tableName),
+		fmt.Sprintf(`DELETE FROM %s WHERE id = $1 AND locked_by = $2;`, tableName),
+		params.ID,
 		params.InstanceID,
 	)
 	if err != nil {
@@ -322,12 +323,13 @@ func (MysqlDialect) UpsertLock(
 //
 // The SQL statement used for deleting the records is as follows:
 //
-//	DELETE FROM {tableName} WHERE locked_by = ?
+//	DELETE FROM {tableName} WHERE id = ? AND locked_by = ?
 //
 // The function returns an error if there is an issue executing the database query.
 func (MysqlDialect) DeleteLock(ctx context.Context, conn *sql.DB, tableName string, params lock.Params) error {
 	_, err := conn.ExecContext(ctx,
-		fmt.Sprintf(`DELETE FROM %s WHERE locked_by = ?;`, tableName),
+		fmt.Sprintf(`DELETE FROM %s WHERE id = ? AND locked_by = ?;`, tableName),
+		params.ID,
 		params.InstanceID,
 	)
 	if err != nil {

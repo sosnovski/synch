@@ -6,7 +6,7 @@ import (
 
 var (
 	ErrLockAlreadyHeld              = errors.New("lock already held")
-	ErrLockHasBeenLost              = errors.New("lock has bee lost")
+	ErrLockHasBeenLost              = errors.New("lock has been lost")
 	ErrDriverIsNil                  = errors.New("driver is nil")
 	ErrInstanceIDIsEmpty            = errors.New("instance id is empty")
 	ErrLoggerIsNil                  = errors.New("logger is nil")
